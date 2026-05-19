@@ -1,5 +1,16 @@
+# Dependency Directories
 node_modules/
 dist/
+
+# Local Environment Secrets
 .env
+.env.local
+.env.*.local
+
+# Firebase Private Keys
+firebase-service-key.json
+*.json.bak
+
+# OS Clutter
 .DS_Store
 *.log

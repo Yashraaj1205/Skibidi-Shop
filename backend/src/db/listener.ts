@@ -1,6 +1,7 @@
 import { Client } from 'pg';
 import { EventEmitter } from 'events';
 import { OrderEvent } from '../types';
+import { sendOrderConfirmationEmail, sendOrderStatusUpdateEmail } from '../services/email';
 
 export const dbEvents = new EventEmitter();
 
@@ -21,6 +22,22 @@ export async function startDBListener(): Promise<void> {
     if (!msg.payload) return;
     try {
       const event: OrderEvent = JSON.parse(msg.payload);
+      
+      // Dispatch emails in a non-blocking background fire-and-forget loop
+      if (event.data.customer_email) {
+        if (event.operation === 'INSERT') {
+          sendOrderConfirmationEmail(event.data.customer_email, event.data).catch((err) =>
+            console.error('Failed to trigger confirmation email in background:', err)
+          );
+        } else if (event.operation === 'UPDATE') {
+          // Check if status changed by looking at database if needed, or simply send on any update.
+          // Since patch is only used for status updates, simple check is perfect.
+          sendOrderStatusUpdateEmail(event.data.customer_email, event.data).catch((err) =>
+            console.error('Failed to trigger status update email in background:', err)
+          );
+        }
+      }
+
       dbEvents.emit('order_change', event);
     } catch (err) {
       console.error('Failed to parse notification payload:', err);

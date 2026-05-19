@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Apt Admin — Order Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', sans-serif;
+    }
+
+    body {
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+      color: #f8fafc;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 20px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    header h1 {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      background: linear-gradient(90deg, #60a5fa, #c084fc);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .nav-links a {
+      color: #94a3b8;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover {
+      color: #f8fafc;
+    }
+
+    .status-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 8px 16px;
+      border-radius: 9999px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    #status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #ef4444;
+      transition: background 0.3s;
+    }
+
+    #status-dot.connected {
+      background: #10b981;
+      box-shadow: 0 0 10px rgba(16, 185, 129, 0.6);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    #status-text {
+      font-size: 13px;
+      font-weight: 500;
+      color: #94a3b8;
+    }
+
+    main {
+      flex: 1;
+      max-width: 1000px;
+      width: 100%;
+      margin: 40px auto;
+      padding: 0 24px;
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 32px;
+    }
+
+    .section-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #cbd5e1;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 20px;
+    }
+
+    .panel {
+      background: rgba(30, 41, 59, 0.5);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    }
+
+    .order-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .order-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: transform 0.2s, background 0.2s;
+      animation: fadeIn 0.4s ease-out;
+    }
+
+    .order-card:hover {
+      background: rgba(255, 255, 255, 0.06);
+      transform: translateY(-2px);
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .order-card.updated {
+      animation: highlight 1s ease-out;
+    }
+
+    @keyframes highlight {
+      0% { box-shadow: 0 0 0 2px #60a5fa; background: rgba(96, 165, 250, 0.1); }
+      100% { box-shadow: 0 0 0 0px transparent; background: rgba(255, 255, 255, 0.03); }
+    }
+
+    .order-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .order-id {
+      font-size: 12px;
+      color: #64748b;
+      font-weight: 600;
+    }
+
+    .customer-name {
+      font-size: 16px;
+      font-weight: 600;
+      color: #f1f5f9;
+    }
+
+    .product-name {
+      font-size: 14px;
+      color: #94a3b8;
+    }
+
+    .status-badge {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 9999px;
+      text-transform: capitalize;
+    }
+
+    .status-pending { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.2); }
+    .status-shipped { background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.2); }
+    .status-delivered { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.2); }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    input, select {
+      width: 100%;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #f8fafc;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input::placeholder {
+      color: #64748b;
+    }
+
+    input:focus, select:focus {
+      border-color: #60a5fa;
+    }
+
+    button {
+      width: 100%;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+
+    button:hover { opacity: 0.9; }
+    button:active { transform: scale(0.98); }
+
+    .btn-primary { background: linear-gradient(90deg, #3b82f6, #8b5cf6); color: white; }
+    .btn-warning { background: linear-gradient(90deg, #f59e0b, #ea580c); color: white; margin-top: 10px; }
+    .btn-danger { background: linear-gradient(90deg, #ef4444, #b91c1c); color: white; margin-top: 10px; }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #64748b;
+      font-size: 15px;
+    }
+
+    .divider {
+      height: 1px;
+      background: rgba(255, 255, 255, 0.1);
+      margin: 24px 0;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Order Dashboard (Admin Mode)</h1>
+  <div class="nav-links">
+    <a href="/">Go to Storefront</a>
+    <div class="status-container">
+      <span id="status-dot"></span>
+      <span id="status-text">Connecting...</span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="panel">
+    <h2 class="section-title">Active System Orders</h2>
+    <div id="order-list" class="order-list">
+      <div class="empty-state" id="loading">Loading orders...</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2 class="section-title">Admin Controls</h2>
+    
+    <div class="form-group">
+      <input id="customer" type="text" placeholder="Customer Name" />
+    </div>
+    <div class="form-group">
+      <input id="customer-email" type="email" placeholder="Customer Email (for Alerts)" />
+    </div>
+    <div class="form-group">
+      <input id="product" type="text" placeholder="Product Name" />
+    </div>
+    <button class="btn-primary" onclick="createOrder()">Create Manual Order</button>
+
+    <div class="divider"></div>
+
+    <div class="form-group">
+      <input id="update-id" type="number" placeholder="Order ID" />
+    </div>
+    <div class="form-group">
+      <select id="new-status">
+        <option value="pending">Pending</option>
+        <option value="shipped">Shipped</option>
+        <option value="delivered">Delivered</option>
+      </select>
+    </div>
+    <button class="btn-warning" onclick="updateOrder()">Trigger Status Shift</button>
+    <button class="btn-danger" onclick="deleteOrder()">Remove Order</button>
+  </div>
+</main>
+
+<script>
+  const orderList = document.getElementById('order-list');
+  const dot = document.getElementById('status-dot');
+  const text = document.getElementById('status-text');
+
+  let orders = [];
+
+  async function loadInitialOrders() {
+    try {
+      const res = await fetch('/api/orders');
+      orders = await res.json();
+      renderOrders();
+    } catch (err) {
+      orderList.innerHTML = `<div class="empty-state">Failed to load orders.</div>`;
+    }
+  }
+
+  function renderOrders() {
+    if (orders.length === 0) {
+      orderList.innerHTML = `<div class="empty-state">No active orders found.</div>`;
+      return;
+    }
+    
+    orderList.innerHTML = '';
+    orders.forEach(order => {
+      const card = createOrderCard(order);
+      orderList.appendChild(card);
+    });
+  }
+
+  function createOrderCard(order) {
+    const div = document.createElement('div');
+    div.className = 'order-card';
+    div.id = `order-${order.id}`;
+    div.innerHTML = `
+      <div class="order-info">
+        <span class="order-id">#${order.id} ${order.customer_email ? `(${order.customer_email})` : ''}</span>
+        <span class="customer-name">${order.customer_name}</span>
+        <span class="product-name">${order.product_name}</span>
+      </div>
+      <span class="status-badge status-${order.status}">${order.status}</span>
+    `;
+    return div;
+  }
+
+  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const ws = new WebSocket(`${protocol}//${location.host}`);
+
+  ws.onopen = () => {
+    dot.classList.add('connected');
+    text.textContent = 'Live';
+  };
+
+  ws.onclose = () => {
+    dot.classList.remove('connected');
+    text.textContent = 'Offline';
+  };
+
+  ws.onmessage = (event) => {
+    const msg = JSON.parse(event.data);
+    if (msg.type !== 'order_change') return;
+
+    const { operation, data } = msg;
+
+    if (operation === 'INSERT') {
+      orders.unshift(data);
+      const card = createOrderCard(data);
+      const emptyState = orderList.querySelector('.empty-state');
+      if (emptyState) emptyState.remove();
+      orderList.insertBefore(card, orderList.firstChild);
+    } 
+    else if (operation === 'UPDATE') {
+      const index = orders.findIndex(o => o.id === data.id);
+      if (index !== -1) {
+        orders[index] = data;
+        const existingCard = document.getElementById(`order-${data.id}`);
+        if (existingCard) {
+          const newCard = createOrderCard(data);
+          newCard.classList.add('updated');
+          orderList.replaceChild(newCard, existingCard);
+        }
+      }
+    } 
+    else if (operation === 'DELETE') {
+      orders = orders.filter(o => o.id !== data.id);
+      const card = document.getElementById(`order-${data.id}`);
+      if (card) card.remove();
+      
+      if (orders.length === 0) {
+        orderList.innerHTML = `<div class="empty-state">No active orders found.</div>`;
+      }
+    }
+  };
+
+  async function createOrder() {
+    const customer_name = document.getElementById('customer').value;
+    const customer_email = document.getElementById('customer-email').value || null;
+    const product_name = document.getElementById('product').value;
+    if (!customer_name || !product_name) return;
+    
+    await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ customer_name, customer_email, product_name }),
+    });
+    
+    document.getElementById('customer').value = '';
+    document.getElementById('customer-email').value = '';
+    document.getElementById('product').value = '';
+  }
+
+  async function updateOrder() {
+    const id = document.getElementById('update-id').value;
+    const status = document.getElementById('new-status').value;
+    if (!id) return;
+    
+    await fetch(`/api/orders/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    });
+    
+    document.getElementById('update-id').value = '';
+  }
+
+  async function deleteOrder() {
+    const id = document.getElementById('update-id').value;
+    if (!id) return;
+    
+    await fetch(`/api/orders/${id}`, { method: 'DELETE' });
+    document.getElementById('update-id').value = '';
+  }
+
+  loadInitialOrders();
+</script>
+</body>
+</html>
