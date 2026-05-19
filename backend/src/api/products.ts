@@ -3,13 +3,12 @@ import { pool } from '../db/pool';
 
 const router = Router();
 
-// GET /api/products — Fetch catalog
 router.get('/', async (_req: Request, res: Response) => {
   try {
-    const result = await pool.query('SELECT * FROM products ORDER BY id ASC');
+    const result = await pool.query('SELECT * FROM products WHERE in_stock = TRUE ORDER BY id ASC');
     res.json(result.rows);
   } catch (err) {
-    console.error('Failed to fetch products:', err);
+    console.error('Products fetch failed:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

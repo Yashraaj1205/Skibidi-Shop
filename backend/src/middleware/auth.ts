@@ -15,8 +15,8 @@ export async function authenticateToken(
   res: Response,
   next: NextFunction
 ): Promise<void> {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  const header = req.headers['authorization'];
+  const token = header && header.split(' ')[1];
 
   if (!token) {
     res.status(401).json({ error: 'Access token required' });
@@ -24,16 +24,15 @@ export async function authenticateToken(
   }
 
   try {
-    const decodedToken = await auth.verifyIdToken(token);
+    const decoded = await auth.verifyIdToken(token);
     req.user = {
-      firebase_uid: decodedToken.uid,
-      email: decodedToken.email || '',
-      display_name: decodedToken.name || decodedToken.email?.split('@')[0] || 'Customer',
-      photo_url: decodedToken.picture || undefined
+      firebase_uid: decoded.uid,
+      email: decoded.email || '',
+      display_name: decoded.name || decoded.email?.split('@')[0] || 'Customer',
+      photo_url: decoded.picture || undefined
     };
     next();
-  } catch (err) {
-    console.error('Firebase token verification failed:', err);
-    res.status(403).json({ error: 'Invalid or expired access token' });
+  } catch {
+    res.status(403).json({ error: 'Invalid or expired token' });
   }
 }

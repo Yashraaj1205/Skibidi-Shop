@@ -1,937 +1,740 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Apt — Real-Time Premium Store</title>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Skibidi Shop — Premium Tech Store</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    :root {
-      --bg-gradient: linear-gradient(135deg, #090d16 0%, #0f172a 50%, #1e152a 100%);
-      --glass-bg: rgba(15, 23, 42, 0.45);
-      --glass-border: rgba(255, 255, 255, 0.08);
-      --text-primary: #f8fafc;
-      --text-secondary: #94a3b8;
-      --accent-blue: #3b82f6;
-      --accent-purple: #a855f7;
-      --accent-glow: linear-gradient(90deg, #60a5fa, #c084fc);
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
+    :root {
+      --bg: #050505;
+      --surface: #111;
+      --surface-2: #1a1a1a;
+      --border: #222;
+      --text: #fff;
+      --text-dim: #888;
+      --accent: #00ff88;
+      --accent-2: #7c3aed;
+      --glow: 0 0 20px rgba(0, 255, 136, 0.15);
     }
 
     body {
-      background: var(--bg-gradient);
-      color: var(--text-primary);
-      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Space Grotesk', sans-serif;
       min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
     }
 
-    h1, h2, h3, .brand {
-      font-family: 'Outfit', sans-serif;
-    }
+    a { color: inherit; text-decoration: none; }
 
-    /* Header Nav */
-    header {
-      background: rgba(9, 13, 22, 0.7);
-      backdrop-filter: blur(16px);
-      border-bottom: 1px solid var(--glass-border);
-      padding: 16px 40px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+    nav {
       position: sticky;
       top: 0;
       z-index: 100;
-    }
-
-    .brand-group {
+      background: rgba(5, 5, 5, 0.85);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 40px;
+      height: 64px;
       display: flex;
       align-items: center;
-      gap: 12px;
+      justify-content: space-between;
     }
 
-    .brand-logo {
-      width: 32px;
-      height: 32px;
-      background: linear-gradient(135deg, #60a5fa 0%, #c084fc 100%);
-      border-radius: 8px;
-      box-shadow: 0 0 15px rgba(192, 132, 252, 0.4);
-    }
-
-    header h1 {
-      font-size: 22px;
+    .logo {
+      font-size: 20px;
       font-weight: 800;
-      letter-spacing: 0.5px;
-      background: var(--accent-glow);
-      -webkit-background-clip: text;
-      background-clip: text;
-      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.5px;
+      color: var(--accent);
+      text-transform: uppercase;
     }
 
-    .nav-actions {
+    .logo span { color: var(--text); }
+
+    .nav-right {
       display: flex;
       align-items: center;
-      gap: 24px;
+      gap: 20px;
     }
 
-    .admin-link {
-      color: var(--text-secondary);
-      text-decoration: none;
-      font-size: 14px;
+    .nav-link {
+      font-size: 13px;
       font-weight: 600;
+      color: var(--text-dim);
       transition: color 0.2s;
     }
 
-    .admin-link:hover {
-      color: var(--text-primary);
-    }
+    .nav-link:hover { color: var(--text); }
 
-    /* Live connection widget */
-    .status-container {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      background: rgba(255, 255, 255, 0.04);
-      padding: 6px 14px;
-      border-radius: 9999px;
-      border: 1px solid var(--glass-border);
-    }
-
-    #status-dot {
-      width: 8px;
-      height: 8px;
+    .live-dot {
+      width: 7px;
+      height: 7px;
       border-radius: 50%;
       background: #ef4444;
+      display: inline-block;
     }
 
-    #status-dot.connected {
-      background: #10b981;
-      box-shadow: 0 0 10px rgba(16, 185, 129, 0.6);
-      animation: pulse 2s infinite;
+    .live-dot.on {
+      background: var(--accent);
+      box-shadow: 0 0 8px rgba(0, 255, 136, 0.6);
+      animation: blink 2s infinite;
     }
 
-    @keyframes pulse {
+    @keyframes blink {
       0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
+      50% { opacity: 0.4; }
     }
 
-    #status-text {
+    .live-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
       font-size: 12px;
       font-weight: 600;
-      color: var(--text-secondary);
+      color: var(--text-dim);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 5px 12px;
+      border-radius: 99px;
     }
 
-    /* User Profile Widget */
-    .user-profile {
+    .user-pill {
       display: none;
       align-items: center;
-      gap: 12px;
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid var(--glass-border);
-      padding: 6px 12px;
-      border-radius: 9999px;
+      gap: 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 4px 14px 4px 4px;
+      border-radius: 99px;
+      cursor: default;
     }
 
-    .user-avatar {
+    .user-pill img {
       width: 28px;
       height: 28px;
       border-radius: 50%;
-      border: 1.5px solid #a855f7;
-      object-fit: cover;
+      border: 2px solid var(--accent);
     }
 
-    .user-name {
-      font-size: 13px;
-      font-weight: 600;
-      color: #cbd5e1;
-    }
+    .user-pill span { font-size: 13px; font-weight: 600; }
 
-    .btn-signout {
-      background: transparent;
+    .btn-logout {
+      background: none;
       border: none;
       color: #f43f5e;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 700;
       cursor: pointer;
-      padding: 2px 6px;
-      border-radius: 4px;
-      transition: background 0.2s;
+      padding: 2px 4px;
     }
 
-    .btn-signout:hover {
-      background: rgba(244, 63, 94, 0.1);
-    }
+    .btn-logout:hover { text-decoration: underline; }
 
-    /* Main Container */
-    main {
-      flex: 1;
-      max-width: 1200px;
-      width: 100%;
-      margin: 40px auto;
-      padding: 0 32px;
-    }
-
-    /* Auth Gate Block */
+    /* AUTH GATE */
     #auth-gate {
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
+      min-height: calc(100vh - 64px);
       text-align: center;
-      padding: 80px 24px;
-      background: var(--glass-bg);
-      backdrop-filter: blur(24px);
-      border: 1px solid var(--glass-border);
-      border-radius: 24px;
-      max-width: 500px;
-      margin: 60px auto;
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+      padding: 40px;
+    }
+
+    .gate-badge {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--accent);
+      background: rgba(0, 255, 136, 0.08);
+      border: 1px solid rgba(0, 255, 136, 0.2);
+      padding: 6px 16px;
+      border-radius: 99px;
+      margin-bottom: 24px;
     }
 
     .gate-title {
-      font-size: 28px;
+      font-size: clamp(36px, 6vw, 64px);
       font-weight: 800;
-      margin-bottom: 12px;
-      background: var(--accent-glow);
-      -webkit-background-clip: text;
-      background-clip: text;
-      -webkit-text-fill-color: transparent;
+      line-height: 1.1;
+      letter-spacing: -2px;
+      margin-bottom: 16px;
     }
 
-    .gate-desc {
-      font-size: 14px;
-      color: var(--text-secondary);
-      max-width: 360px;
-      line-height: 22px;
-      margin-bottom: 32px;
+    .gate-title em {
+      font-style: normal;
+      color: var(--accent);
+    }
+
+    .gate-sub {
+      font-size: 16px;
+      color: var(--text-dim);
+      max-width: 420px;
+      line-height: 26px;
+      margin-bottom: 40px;
     }
 
     .btn-google {
-      display: flex;
+      display: inline-flex;
       align-items: center;
       gap: 12px;
-      background: #ffffff;
-      color: #1e293b;
+      background: #fff;
+      color: #111;
       border: none;
-      padding: 12px 24px;
+      padding: 14px 32px;
       border-radius: 12px;
-      font-size: 14px;
+      font-size: 15px;
       font-weight: 700;
+      font-family: inherit;
       cursor: pointer;
       transition: transform 0.2s, box-shadow 0.2s;
-      box-shadow: 0 4px 12px rgba(255, 255, 255, 0.1);
     }
 
     .btn-google:hover {
       transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(255, 255, 255, 0.2);
+      box-shadow: 0 8px 24px rgba(255, 255, 255, 0.1);
     }
 
-    .btn-google svg {
-      width: 18px;
-      height: 18px;
-    }
+    .btn-google svg { width: 20px; height: 20px; }
 
-    /* Storefront Grid & Panels */
-    #store-content {
+    /* MAIN STORE */
+    #store {
       display: none;
-      grid-template-columns: 7fr 4fr;
-      gap: 40px;
-      animation: fadeIn 0.5s ease-out;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 48px 40px 80px;
     }
 
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(15px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
+    #store.active { display: grid; grid-template-columns: 1fr 380px; gap: 48px; }
 
-    .store-main-title {
-      font-size: 24px;
+    .col-main h2, .col-side h2 {
+      font-size: 14px;
       font-weight: 700;
-      margin-bottom: 24px;
-      color: #e2e8f0;
-      display: flex;
-      align-items: center;
-      gap: 10px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--text-dim);
+      margin-bottom: 28px;
     }
 
-    /* Product Grid */
-    .products-grid {
+    .col-main h2 span { color: var(--accent); }
+
+    /* PRODUCT GRID */
+    .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-      gap: 24px;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 20px;
     }
 
-    .product-card {
-      background: var(--glass-bg);
-      backdrop-filter: blur(12px);
-      border: 1px solid var(--glass-border);
-      border-radius: 20px;
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
       overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s;
+      transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s;
     }
 
-    .product-card:hover {
+    .card:hover {
       transform: translateY(-6px);
-      box-shadow: 0 12px 30px rgba(96, 165, 250, 0.15);
-      border-color: rgba(96, 165, 250, 0.3);
+      border-color: rgba(0, 255, 136, 0.3);
+      box-shadow: var(--glow);
     }
 
-    .product-image-container {
+    .card-img {
       width: 100%;
-      height: 180px;
+      height: 200px;
+      object-fit: cover;
+      display: block;
+      transition: transform 0.5s;
+    }
+
+    .card:hover .card-img { transform: scale(1.06); }
+
+    .card-img-wrap {
       overflow: hidden;
       position: relative;
     }
 
-    .product-image {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      transition: transform 0.5s;
-    }
-
-    .product-card:hover .product-image {
-      transform: scale(1.08);
-    }
-
-    .product-category {
+    .card-cat {
       position: absolute;
-      top: 12px;
-      left: 12px;
+      top: 10px;
+      left: 10px;
       font-size: 10px;
       font-weight: 800;
       text-transform: uppercase;
-      padding: 4px 8px;
-      border-radius: 9999px;
-      background: rgba(15, 23, 42, 0.85);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      color: #c084fc;
-      letter-spacing: 0.5px;
+      letter-spacing: 1px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(0, 0, 0, 0.7);
+      border: 1px solid var(--border);
+      color: var(--accent);
     }
 
-    .product-info {
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      flex: 1;
-    }
+    .card-body { padding: 18px; }
 
-    .product-name {
-      font-size: 18px;
+    .card-name {
+      font-size: 16px;
       font-weight: 700;
-      color: #f1f5f9;
       margin-bottom: 6px;
+      line-height: 1.3;
     }
 
-    .product-desc {
+    .card-desc {
       font-size: 13px;
-      color: var(--text-secondary);
-      line-height: 18px;
-      margin-bottom: 20px;
-      flex: 1;
+      color: var(--text-dim);
+      line-height: 19px;
+      margin-bottom: 18px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
     }
 
-    .product-footer {
+    .card-footer {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-top: auto;
     }
 
-    .product-price {
+    .card-price {
       font-size: 20px;
       font-weight: 800;
-      color: #60a5fa;
+      color: var(--accent);
     }
 
     .btn-buy {
-      background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
-      color: #ffffff;
+      background: var(--accent);
+      color: #000;
       border: none;
       padding: 8px 16px;
-      border-radius: 10px;
-      font-size: 13px;
-      font-weight: 700;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 800;
+      font-family: inherit;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
       cursor: pointer;
-      transition: transform 0.2s, box-shadow 0.2s;
+      transition: transform 0.15s, box-shadow 0.15s;
     }
 
     .btn-buy:hover {
       transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
+      box-shadow: 0 4px 12px rgba(0, 255, 136, 0.3);
     }
 
-    .btn-buy:active {
-      transform: scale(0.96);
+    .btn-buy:active { transform: scale(0.96); }
+
+    .btn-buy:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
     }
 
-    /* History & Active Orders Tracker Panel */
-    .orders-panel {
-      background: var(--glass-bg);
-      backdrop-filter: blur(12px);
-      border: 1px solid var(--glass-border);
-      border-radius: 24px;
-      padding: 24px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-      max-height: 80vh;
-      overflow-y: auto;
+    /* ORDER TRACKER SIDEBAR */
+    .col-side {
       position: sticky;
       top: 100px;
+      align-self: start;
     }
 
-    .orders-list {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    .customer-order-card {
-      background: rgba(255, 255, 255, 0.02);
-      border: 1px solid rgba(255, 255, 255, 0.04);
+    .tracker {
+      background: var(--surface);
+      border: 1px solid var(--border);
       border-radius: 16px;
-      padding: 16px;
-      transition: border-color 0.3s;
-      animation: slideIn 0.3s ease-out;
+      padding: 24px;
+      max-height: calc(100vh - 160px);
+      overflow-y: auto;
     }
 
-    @keyframes slideIn {
-      from { opacity: 0; transform: translateY(-10px); }
+    .tracker-list { display: flex; flex-direction: column; gap: 14px; }
+
+    .tracker-card {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      animation: slideUp 0.3s ease;
+    }
+
+    .tracker-card.flash {
+      animation: glow 1.5s ease;
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(8px); }
       to { opacity: 1; transform: translateY(0); }
     }
 
-    .customer-order-card.updated {
-      animation: borderHighlight 1.5s ease-out;
+    @keyframes glow {
+      0% { border-color: var(--accent); box-shadow: 0 0 12px rgba(0, 255, 136, 0.2); }
+      100% { border-color: var(--border); box-shadow: none; }
     }
 
-    @keyframes borderHighlight {
-      0% { border-color: #a855f7; box-shadow: 0 0 15px rgba(168, 85, 247, 0.25); background: rgba(168, 85, 247, 0.05); }
-      100% { border-color: rgba(255, 255, 255, 0.04); box-shadow: none; background: rgba(255, 255, 255, 0.02); }
-    }
-
-    .order-header {
+    .tracker-head {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
     }
 
-    .order-meta-id {
+    .tracker-id {
       font-size: 11px;
       font-weight: 700;
-      color: var(--text-secondary);
+      color: var(--text-dim);
       letter-spacing: 0.5px;
     }
 
-    .status-badge {
-      font-size: 11px;
-      font-weight: 700;
-      padding: 3px 10px;
-      border-radius: 9999px;
+    .badge {
+      font-size: 10px;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 99px;
       text-transform: uppercase;
-      border: 1px solid;
+      letter-spacing: 0.5px;
     }
 
-    .status-pending { background: rgba(245, 158, 11, 0.1); color: #fbbf24; border-color: rgba(245, 158, 11, 0.2); }
-    .status-shipped { background: rgba(56, 189, 248, 0.1); color: #38bdf8; border-color: rgba(56, 189, 248, 0.2); }
-    .status-delivered { background: rgba(16, 185, 129, 0.1); color: #34d399; border-color: rgba(16, 185, 129, 0.2); }
+    .badge-pending { background: rgba(234, 179, 8, 0.12); color: #eab308; border: 1px solid rgba(234, 179, 8, 0.2); }
+    .badge-shipped { background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.2); }
+    .badge-delivered { background: rgba(0, 255, 136, 0.12); color: #00ff88; border: 1px solid rgba(0, 255, 136, 0.2); }
 
-    .order-prod-name {
-      font-size: 15px;
+    .tracker-product {
+      font-size: 14px;
       font-weight: 600;
-      color: #f1f5f9;
       margin-bottom: 12px;
     }
 
-    /* Elegant Progress Bar inside orders */
-    .progress-track-wrapper {
-      margin-top: 10px;
-    }
-
-    .progress-bar-bg {
-      height: 6px;
-      background: rgba(255, 255, 255, 0.06);
-      border-radius: 999px;
+    .progress-track {
+      height: 4px;
+      background: #222;
+      border-radius: 99px;
       overflow: hidden;
       margin-bottom: 6px;
-      position: relative;
     }
 
-    .progress-bar-fill {
+    .progress-fill {
       height: 100%;
-      background: linear-gradient(90deg, #3b82f6 0%, #a855f7 100%);
-      border-radius: 999px;
+      border-radius: 99px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
       transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     .progress-labels {
       display: flex;
       justify-content: space-between;
-      font-size: 10px;
+      font-size: 9px;
       font-weight: 700;
-      color: #64748b;
       text-transform: uppercase;
       letter-spacing: 0.5px;
+      color: #444;
     }
 
-    .label-active {
-      color: #e2e8f0;
-    }
+    .progress-labels .active { color: var(--text-dim); }
 
-    .empty-state {
+    .empty {
       text-align: center;
-      padding: 40px 20px;
-      color: var(--text-secondary);
+      padding: 40px 16px;
+      color: #444;
       font-size: 14px;
+      font-weight: 500;
     }
 
-    /* Global notification popups */
-    .toast-container {
+    /* TOASTS */
+    .toast-wrap {
       position: fixed;
       bottom: 24px;
       right: 24px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
-      z-index: 1000;
+      gap: 10px;
+      z-index: 999;
     }
 
     .toast {
-      background: rgba(15, 23, 42, 0.95);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 12px;
-      padding: 16px 20px;
-      color: #f8fafc;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      animation: slideInLeft 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 10px;
+      padding: 14px 18px;
       max-width: 320px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      animation: toastIn 0.3s ease;
     }
 
-    @keyframes slideInLeft {
-      from { opacity: 0; transform: translateX(50px); }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateX(40px); }
       to { opacity: 1; transform: translateX(0); }
     }
 
     .toast-title {
-      font-weight: 700;
-      font-size: 13px;
-      color: #a855f7;
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--accent);
       text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
     }
 
-    .toast-body {
-      font-size: 13px;
-      color: #e2e8f0;
-    }
+    .toast-msg { font-size: 13px; color: var(--text-dim); line-height: 18px; }
 
-    /* Scrollbar override */
-    ::-webkit-scrollbar { width: 6px; }
+    /* SCROLLBAR */
+    ::-webkit-scrollbar { width: 5px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.08); border-radius: 99px; }
-    ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.15); }
+    ::-webkit-scrollbar-thumb { background: #222; border-radius: 99px; }
+
+    @media (max-width: 800px) {
+      nav { padding: 0 20px; }
+      #store.active { grid-template-columns: 1fr; }
+      .col-side { position: static; }
+      .grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 500px) {
+      .grid { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
 
-<header>
-  <div class="brand-group">
-    <div class="brand-logo"></div>
-    <h1>Apt Store</h1>
-  </div>
-  <div class="nav-actions">
-    <a href="/admin.html" class="admin-link">Admin Panel</a>
-    
-    <!-- User Widget -->
-    <div id="user-widget" class="user-profile">
-      <img id="user-photo" class="user-avatar" src="" alt="avatar" />
-      <span id="user-display-name" class="user-name">Loading...</span>
-      <button class="btn-signout" onclick="signOutUser()">Sign Out</button>
+<nav>
+  <div class="logo"><em>Skibidi</em><span> Shop</span></div>
+  <div class="nav-right">
+    <div id="user-pill" class="user-pill">
+      <img id="user-photo" src="" alt="">
+      <span id="user-name"></span>
+      <button class="btn-logout" onclick="logout()">Sign out</button>
     </div>
-
-    <!-- Connection dot -->
-    <div class="status-container">
-      <span id="status-dot"></span>
-      <span id="status-text">Connecting...</span>
+    <div class="live-badge">
+      <span id="ws-dot" class="live-dot"></span>
+      <span id="ws-text">Offline</span>
     </div>
   </div>
-</header>
+</nav>
 
-<main>
-  <!-- Authentication Screen -->
-  <section id="auth-gate">
-    <h2 class="gate-title">Welcome to Apt Store</h2>
-    <p class="gate-desc">Log in securely with Google to view live product availability, checkout in 1-click, and receive instant real-time order status tracking emails!</p>
-    <button class="btn-google" onclick="signInWithGoogle()">
-      <!-- Google icon vector -->
-      <svg viewBox="0 0 24 24" width="24" height="24" xmlns="http://www.w3.org/2000/svg">
-        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
-        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
-      </svg>
-      Continue with Google
-    </button>
-  </section>
+<section id="auth-gate">
+  <div class="gate-badge">Real-Time E-Commerce</div>
+  <h1 class="gate-title">Welcome to<br><em>Skibidi Shop</em></h1>
+  <p class="gate-sub">Sign in with Google to browse premium tech, purchase in one click, and track your orders in real-time with live email notifications.</p>
+  <button class="btn-google" onclick="googleLogin()">
+    <svg viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.07 5.07 0 01-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09a6.97 6.97 0 010-4.18V7.07H2.18A11 11 0 001 12c0 1.78.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84A6.97 6.97 0 0112 5.38z" fill="#EA4335"/></svg>
+    Continue with Google
+  </button>
+</section>
 
-  <!-- Authenticated Storefront Screen -->
-  <section id="store-content">
-    <div>
-      <h2 class="store-main-title">🌟 Live Catalog</h2>
-      <div id="products-grid" class="products-grid">
-        <!-- Products list dynamically loaded -->
+<main id="store">
+  <div class="col-main">
+    <h2><span>▸</span> Catalog</h2>
+    <div id="grid" class="grid"></div>
+  </div>
+  <div class="col-side">
+    <h2>Your Orders</h2>
+    <div class="tracker">
+      <div id="tracker-list" class="tracker-list">
+        <div class="empty">No orders yet — grab something!</div>
       </div>
     </div>
-    
-    <div>
-      <div class="orders-panel">
-        <h2 class="store-main-title">📦 Your Orders Tracker</h2>
-        <div id="orders-list" class="orders-list">
-          <div class="empty-state">No orders placed yet. Grab something from the catalog!</div>
-        </div>
-      </div>
-    </div>
-  </section>
+  </div>
 </main>
 
-<div id="toast-container" class="toast-container"></div>
+<div id="toasts" class="toast-wrap"></div>
 
-<!-- Firebase compatibility CDN -->
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
 
 <script>
-  // Firebase configuration supplied by user
-  const firebaseConfig = {
-    apiKey: "AIzaSyBmNkXx4iBGAuI-lVUXHedNsZMLHUW-qJs",
-    authDomain: "realtime-orders-12.firebaseapp.com",
-    projectId: "realtime-orders-12",
-    storageBucket: "realtime-orders-12.firebasestorage.app",
-    messagingSenderId: "524467064012",
-    appId: "1:524467064012:web:b28e1c67fbaf8b18b88669",
-    measurementId: "G-7YZ4K86VN2"
-  };
-
-  // Initialize Firebase
-  firebase.initializeApp(firebaseConfig);
-  const auth = firebase.auth();
-
-  let localToken = localStorage.getItem('idToken') || null;
+  let auth;
+  let token = null;
   let products = [];
-  let userOrders = [];
+  let orders = [];
 
-  // Watch Auth State
-  auth.onAuthStateChanged(async (user) => {
-    const authGate = document.getElementById('auth-gate');
-    const storeContent = document.getElementById('store-content');
-    const userWidget = document.getElementById('user-widget');
+  async function initStore() {
+    const res = await fetch('/api/config');
+    const config = await res.json();
+    firebase.initializeApp(config);
+    
+    auth = firebase.auth();
 
-    if (user) {
-      // Get Fresh ID Token
-      const token = await user.getIdToken();
-      localToken = token;
-      localStorage.setItem('idToken', token);
-
-      // Display User profile
-      document.getElementById('user-photo').src = user.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100';
-      document.getElementById('user-display-name').textContent = user.displayName || user.email.split('@')[0];
-      userWidget.style.display = 'flex';
-
-      // Hide login gate, show store
-      authGate.style.display = 'none';
-      storeContent.style.display = 'grid';
-
-      // Sync user profile to backend & fetch catalog
-      await syncUserProfile();
-      await fetchProducts();
-      await fetchMyOrders();
-    } else {
-      localToken = null;
-      localStorage.removeItem('idToken');
-      userWidget.style.display = 'none';
-      authGate.style.display = 'flex';
-      storeContent.style.display = 'none';
-    }
-  });
-
-  // Google OAuth Login Trigger
-  function signInWithGoogle() {
-    const provider = new firebase.auth.GoogleAuthProvider();
-    auth.signInWithPopup(provider).catch((err) => {
-      console.error("Google login failed:", err);
-      showToast("Auth Error", "Could not complete Google Sign-In. Try again.");
+    auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        token = await user.getIdToken();
+        document.getElementById('user-photo').src = user.photoURL || '';
+        document.getElementById('user-name').textContent = user.displayName || user.email.split('@')[0];
+        document.getElementById('user-pill').style.display = 'flex';
+        document.getElementById('auth-gate').style.display = 'none';
+        document.getElementById('store').classList.add('active');
+        await syncProfile();
+        await loadProducts();
+        await loadOrders();
+      } else {
+        token = null;
+        document.getElementById('user-pill').style.display = 'none';
+        document.getElementById('auth-gate').style.display = 'flex';
+        document.getElementById('store').classList.remove('active');
+      }
     });
   }
 
-  // Sign out
-  function signOutUser() {
-    auth.signOut().then(() => {
-      showToast("Signed Out", "You have been successfully logged out.");
+  initStore();
+
+  function googleLogin() {
+    auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch((e) => {
+      toast('Error', 'Google sign-in failed. Try again.');
     });
   }
 
-  // Sync user profile to our PG Database
-  async function syncUserProfile() {
+  function logout() { auth.signOut(); }
+
+  async function syncProfile() {
     try {
-      const res = await fetch('/api/auth/sync', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localToken}`
-        }
-      });
-      if (!res.ok) throw new Error("Sync failed");
-      console.log("✓ Profile successfully synced with relational database.");
-    } catch (err) {
-      console.error(err);
-    }
+      await fetch('/api/auth/sync', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
+    } catch {}
   }
 
-  // Fetch product catalog from Node.js Express server
-  async function fetchProducts() {
+  async function loadProducts() {
     try {
       const res = await fetch('/api/products');
       products = await res.json();
       renderProducts();
-    } catch (err) {
-      console.error("Failed to load products:", err);
-    }
+    } catch {}
   }
 
-  // Render product catalog
   function renderProducts() {
-    const grid = document.getElementById('products-grid');
+    const grid = document.getElementById('grid');
     grid.innerHTML = '';
-    
-    if (products.length === 0) {
-      grid.innerHTML = '<div class="empty-state">No products found.</div>';
-      return;
-    }
-
     products.forEach(p => {
-      const card = document.createElement('div');
-      card.className = 'product-card';
-      card.innerHTML = `
-        <div class="product-image-container">
-          <span class="product-category">${p.category}</span>
-          <img class="product-image" src="${p.image_url}" alt="${p.name}" />
+      const el = document.createElement('div');
+      el.className = 'card';
+      el.innerHTML = `
+        <div class="card-img-wrap">
+          <span class="card-cat">${p.category}</span>
+          <img class="card-img" src="${p.image_url}" alt="${p.name}" loading="lazy">
         </div>
-        <div class="product-info">
-          <h3 class="product-name">${p.name}</h3>
-          <p class="product-desc">${p.description}</p>
-          <div class="product-footer">
-            <span class="product-price">$${Number(p.price).toFixed(2)}</span>
-            <button class="btn-buy" onclick="buyProduct(${p.id})">1-Click Purchase</button>
+        <div class="card-body">
+          <div class="card-name">${p.name}</div>
+          <div class="card-desc">${p.description}</div>
+          <div class="card-footer">
+            <span class="card-price">$${Number(p.price).toFixed(2)}</span>
+            <button class="btn-buy" id="buy-${p.id}" onclick="buy(${p.id}, this)">Buy Now</button>
           </div>
         </div>
       `;
-      grid.appendChild(card);
+      grid.appendChild(el);
     });
   }
 
-  // Purchase endpoint trigger
-  async function buyProduct(productId) {
+  async function buy(productId, btn) {
+    btn.disabled = true;
+    btn.textContent = 'Processing...';
     try {
       const res = await fetch('/api/store/orders', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localToken}`
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
         body: JSON.stringify({ product_id: productId })
       });
-
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || "Purchase failed");
-      }
-
-      const order = await res.ok ? await res.json() : null;
-      showToast("Order Confirmed!", `Check your email! Receipt successfully dispatched for your ${order.product_name}.`);
-    } catch (err) {
-      console.error(err);
-      showToast("Order Failure", err.message || "Checkout failed");
+      if (!res.ok) throw new Error((await res.json()).error);
+      const order = await res.json();
+      toast('Order Placed!', `${order.product_name} — check your email for confirmation.`);
+    } catch (e) {
+      toast('Failed', e.message || 'Could not place order');
     }
+    btn.disabled = false;
+    btn.textContent = 'Buy Now';
   }
 
-  // Fetch Order history of the logged in user
-  async function fetchMyOrders() {
+  async function loadOrders() {
     try {
-      const res = await fetch('/api/store/my-orders', {
-        headers: {
-          'Authorization': `Bearer ${localToken}`
-        }
-      });
-      userOrders = await res.json();
+      const res = await fetch('/api/store/my-orders', { headers: { 'Authorization': 'Bearer ' + token } });
+      orders = await res.json();
       renderOrders();
-    } catch (err) {
-      console.error(err);
-    }
+    } catch {}
   }
 
-  // Helper to draw progress bars
-  function getProgressDetails(status) {
-    let width = '10%';
-    let active = [true, false, false];
+  function progressWidth(s) { return s === 'pending' ? '20%' : s === 'shipped' ? '60%' : '100%'; }
 
-    if (status === 'pending') {
-      width = '20%';
-      active = [true, false, false];
-    } else if (status === 'shipped') {
-      width = '60%';
-      active = [true, true, false];
-    } else if (status === 'delivered') {
-      width = '100%';
-      active = [true, true, true];
-    }
-
-    return { width, active };
-  }
-
-  // Render orders
   function renderOrders() {
-    const list = document.getElementById('orders-list');
-    list.innerHTML = '';
-
-    if (userOrders.length === 0) {
-      list.innerHTML = '<div class="empty-state">No orders placed yet. Grab something from the catalog!</div>';
+    const list = document.getElementById('tracker-list');
+    if (orders.length === 0) {
+      list.innerHTML = '<div class="empty">No orders yet — grab something!</div>';
       return;
     }
-
-    userOrders.forEach(order => {
-      const card = createCustomerOrderCard(order);
-      list.appendChild(card);
-    });
+    list.innerHTML = '';
+    orders.forEach(o => list.appendChild(orderCard(o)));
   }
 
-  // Generate HTML block for single user order tracking card
-  function createCustomerOrderCard(order) {
+  function orderCard(o) {
     const div = document.createElement('div');
-    div.className = 'customer-order-card';
-    div.id = `cust-order-${order.id}`;
-
-    const { width, active } = getProgressDetails(order.status);
-
+    div.className = 'tracker-card';
+    div.id = 'order-' + o.id;
+    const a = (s) => (s === 'pending' || s === 'shipped' || s === 'delivered');
+    const aShip = (s) => (s === 'shipped' || s === 'delivered');
+    const aDel = (s) => (s === 'delivered');
     div.innerHTML = `
-      <div class="order-header">
-        <span class="order-meta-id">ORDER #${order.id}</span>
-        <span class="status-badge status-${order.status}">${order.status}</span>
+      <div class="tracker-head">
+        <span class="tracker-id">#${o.id}</span>
+        <span class="badge badge-${o.status}">${o.status}</span>
       </div>
-      <div class="order-prod-name">${order.product_name}</div>
-      <div class="progress-track-wrapper">
-        <div class="progress-bar-bg">
-          <div class="progress-bar-fill" style="width: ${width};"></div>
-        </div>
-        <div class="progress-labels">
-          <span class="${active[0] ? 'label-active' : ''}">Ordered</span>
-          <span class="${active[1] ? 'label-active' : ''}">Shipped</span>
-          <span class="${active[2] ? 'label-active' : ''}">Delivered</span>
-        </div>
+      <div class="tracker-product">${o.product_name}</div>
+      <div class="progress-track"><div class="progress-fill" style="width:${progressWidth(o.status)}"></div></div>
+      <div class="progress-labels">
+        <span class="${a(o.status) ? 'active' : ''}">Ordered</span>
+        <span class="${aShip(o.status) ? 'active' : ''}">Shipped</span>
+        <span class="${aDel(o.status) ? 'active' : ''}">Delivered</span>
       </div>
     `;
-
     return div;
   }
 
-  /* Real-Time WebSocket Listener */
-  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const dot = document.getElementById('status-dot');
-  const connText = document.getElementById('status-text');
+  // WebSocket
+  const wsDot = document.getElementById('ws-dot');
+  const wsText = document.getElementById('ws-text');
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const ws = new WebSocket(proto + '//' + location.host);
 
-  const ws = new WebSocket(`${protocol}//${location.host}`);
+  ws.onopen = () => { wsDot.classList.add('on'); wsText.textContent = 'Live'; };
+  ws.onclose = () => { wsDot.classList.remove('on'); wsText.textContent = 'Offline'; };
 
-  ws.onopen = () => {
-    dot.className = 'connected';
-    connText.textContent = 'Live';
-  };
-
-  ws.onclose = () => {
-    dot.className = '';
-    connText.textContent = 'Offline';
-  };
-
-  ws.onmessage = (event) => {
-    const msg = JSON.parse(event.data);
+  ws.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
     if (msg.type !== 'order_change') return;
 
-    const { operation, data } = msg;
+    const user = auth.currentUser;
+    if (!user || msg.data.customer_email !== user.email) return;
 
-    // Filter events to only apply to current user!
-    // Since local profile synchronization maps user ID, let's verify if the order belongs to this customer
-    // We can fetch details or cross-check using local orders history
-    // Since we fetch order list, we can match user_id or email
-    const currentUser = auth.currentUser;
-    if (!currentUser || (data.customer_email !== currentUser.email)) {
-      return; // Skip updates for other customers
-    }
-
-    if (operation === 'INSERT') {
-      userOrders.unshift(data);
+    if (msg.operation === 'INSERT') {
+      orders.unshift(msg.data);
       renderOrders();
-      showToast("Order Received!", `Your purchase of ${data.product_name} is processing!`);
-    }
-    else if (operation === 'UPDATE') {
-      const index = userOrders.findIndex(o => o.id === data.id);
-      if (index !== -1) {
-        userOrders[index] = data;
-        const card = document.getElementById(`cust-order-${data.id}`);
-        if (card) {
-          const newCard = createCustomerOrderCard(data);
-          newCard.classList.add('updated');
-          list = document.getElementById('orders-list');
-          list.replaceChild(newCard, card);
-        } else {
-          renderOrders();
-        }
-        
-        const emoji = data.status === 'delivered' ? '🎉' : '🚚';
-        showToast("Order Update!", `${emoji} Order #${data.id} is now ${data.status.toUpperCase()}! Check email!`);
-      }
-    }
-    else if (operation === 'DELETE') {
-      userOrders = userOrders.filter(o => o.id !== data.id);
-      const card = document.getElementById(`cust-order-${data.id}`);
-      if (card) card.remove();
-      if (userOrders.length === 0) {
+      toast('Order Received', msg.data.product_name + ' is being processed!');
+    } else if (msg.operation === 'UPDATE') {
+      const idx = orders.findIndex(o => o.id === msg.data.id);
+      if (idx !== -1) {
+        orders[idx] = msg.data;
         renderOrders();
+        const card = document.getElementById('order-' + msg.data.id);
+        if (card) card.classList.add('flash');
+        const icon = msg.data.status === 'delivered' ? '🎉' : '🚚';
+        toast('Status Update', icon + ' Order #' + msg.data.id + ' → ' + msg.data.status.toUpperCase());
       }
+    } else if (msg.operation === 'DELETE') {
+      orders = orders.filter(o => o.id !== msg.data.id);
+      renderOrders();
     }
   };
 
-  /* Toast Helper */
-  function showToast(title, body) {
-    const container = document.getElementById('toast-container');
-    const toast = document.createElement('div');
-    toast.className = 'toast';
-    toast.innerHTML = `
-      <div>
-        <div class="toast-title">${title}</div>
-        <div class="toast-body">${body}</div>
-      </div>
-    `;
-
-    container.appendChild(toast);
-    
-    // Auto remove after 6 seconds
+  function toast(title, msg) {
+    const wrap = document.getElementById('toasts');
+    const el = document.createElement('div');
+    el.className = 'toast';
+    el.innerHTML = `<div class="toast-title">${title}</div><div class="toast-msg">${msg}</div>`;
+    wrap.appendChild(el);
     setTimeout(() => {
-      toast.style.opacity = '0';
-      toast.style.transform = 'translateX(50px)';
-      toast.style.transition = 'opacity 0.5s, transform 0.5s';
-      setTimeout(() => toast.remove(), 500);
-    }, 6000);
+      el.style.opacity = '0';
+      el.style.transform = 'translateX(40px)';
+      el.style.transition = 'all 0.3s';
+      setTimeout(() => el.remove(), 300);
+    }, 5000);
   }
 </script>
 </body>

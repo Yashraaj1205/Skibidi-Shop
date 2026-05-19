@@ -4,7 +4,6 @@ export async function runMigrations(): Promise<void> {
   const client = await pool.connect();
 
   try {
-    // 1. Create Users Table
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id           SERIAL      PRIMARY KEY,
@@ -16,7 +15,6 @@ export async function runMigrations(): Promise<void> {
       );
     `);
 
-    // 2. Create Products Table
     await client.query(`
       CREATE TABLE IF NOT EXISTS products (
         id          SERIAL        PRIMARY KEY,
@@ -30,7 +28,6 @@ export async function runMigrations(): Promise<void> {
       );
     `);
 
-    // 3. Create Orders Table with User Relations
     await client.query(`
       CREATE TABLE IF NOT EXISTS orders (
         id             SERIAL      PRIMARY KEY,
@@ -44,29 +41,26 @@ export async function runMigrations(): Promise<void> {
       );
     `);
 
-    // Add customer_email and user_id columns if they don't exist (in case orders already existed)
     await client.query(`
       ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_email TEXT;
       ALTER TABLE orders ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;
     `);
 
-    // 4. Seed Products if empty
     const productCheck = await client.query('SELECT COUNT(*) FROM products');
     if (parseInt(productCheck.rows[0].count) === 0) {
-      console.log('🌱 Seeding initial products database...');
+      console.log('Seeding product catalog...');
       await client.query(`
         INSERT INTO products (name, description, price, image_url, category) VALUES
-        ('iPhone 15 Pro Max', 'Titanium design, powerful A17 Pro chip, customizable Action button, and 5x Telephoto camera.', 1199.99, 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=500&auto=format&fit=crop&q=60', 'Electronics'),
-        ('MacBook Pro M3 Max', 'The ultimate developer laptop with a 14-core CPU, 30-core GPU, 36GB unified memory, and a gorgeous Liquid Retina XDR display.', 2499.99, 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=500&auto=format&fit=crop&q=60', 'Electronics'),
-        ('Sony WH-1000XM5', 'Industry-leading noise-canceling wireless over-ear headphones with premium sound quality and crystal-clear calls.', 349.99, 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=60', 'Audio'),
-        ('Keychron Q1 Pro', 'Ultra-premium, full-aluminum custom mechanical keyboard with hot-swappable switches and custom RGB backlight.', 199.99, 'https://images.unsplash.com/photo-1618384887929-16ec33fab9ef?w=500&auto=format&fit=crop&q=60', 'Peripherals'),
-        ('Apple Watch Ultra 2', 'The most rugged and capable Apple Watch ever, designed for outdoor adventures and athletic performance.', 799.99, 'https://images.unsplash.com/photo-1434494878577-86c23bcb06b9?w=500&auto=format&fit=crop&q=60', 'Wearables'),
-        ('Sony PlayStation 5', 'Experience lightning-fast loading with an ultra-high-speed SSD, deeper immersion with haptic feedback, and all-new gaming marvels.', 499.99, 'https://images.unsplash.com/photo-1606813907291-d86efa9b94db?w=500&auto=format&fit=crop&q=60', 'Gaming')
+        ('iPhone 15 Pro Max', 'Titanium design with A17 Pro chip, customizable Action button, and 5x Telephoto camera.', 1199.99, 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=500&auto=format&fit=crop&q=60', 'Phones'),
+        ('MacBook Pro M3', 'The ultimate laptop with 14-core CPU, 30-core GPU, 36GB unified memory, and Liquid Retina XDR display.', 2499.99, 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=500&auto=format&fit=crop&q=60', 'Laptops'),
+        ('Sony WH-1000XM5', 'Industry-leading noise-canceling wireless headphones with premium sound and crystal-clear calls.', 349.99, 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=60', 'Audio'),
+        ('Keychron Q1 Pro', 'Full-aluminum custom mechanical keyboard with hot-swappable switches and RGB backlight.', 199.99, 'https://images.unsplash.com/photo-1618384887929-16ec33fab9ef?w=500&auto=format&fit=crop&q=60', 'Peripherals'),
+        ('Apple Watch Ultra 2', 'The most rugged Apple Watch ever built for outdoor adventures and peak athletic performance.', 799.99, 'https://images.unsplash.com/photo-1434494878577-86c23bcb06b9?w=500&auto=format&fit=crop&q=60', 'Wearables'),
+        ('PlayStation 5', 'Lightning-fast SSD, haptic feedback, adaptive triggers, and stunning 4K gaming experiences.', 499.99, 'https://images.unsplash.com/photo-1606813907291-d86efa9b94db?w=500&auto=format&fit=crop&q=60', 'Gaming')
       `);
-      console.log('✓ Product database successfully seeded.');
+      console.log('Product catalog seeded');
     }
 
-    // 5. Setup Notify Trigger
     await client.query(`
       CREATE OR REPLACE FUNCTION notify_orders_change()
       RETURNS TRIGGER AS $$
@@ -96,13 +90,12 @@ export async function runMigrations(): Promise<void> {
 
     await client.query(`
       DROP TRIGGER IF EXISTS orders_change_trigger ON orders;
-
       CREATE TRIGGER orders_change_trigger
       AFTER INSERT OR UPDATE OR DELETE ON orders
       FOR EACH ROW EXECUTE FUNCTION notify_orders_change();
     `);
 
-    console.log('✓ Migrations complete (all 3 tables + trigger ready)');
+    console.log('Migrations complete');
   } finally {
     client.release();
   }

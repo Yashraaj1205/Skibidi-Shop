@@ -1,451 +1,291 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Apt Admin — Order Dashboard</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Skibidi Shop — Admin Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: 'Inter', sans-serif;
-    }
-
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
-      color: #f8fafc;
+      background: #050505;
+      color: #fff;
+      font-family: 'Space Grotesk', sans-serif;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
     }
 
-    header {
-      background: rgba(15, 23, 42, 0.6);
-      backdrop-filter: blur(12px);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-      padding: 20px 40px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      position: sticky;
-      top: 0;
-      z-index: 10;
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(5,5,5,0.85);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid #222;
+      padding: 0 40px; height: 64px;
+      display: flex; align-items: center; justify-content: space-between;
     }
-
-    header h1 {
-      font-size: 20px;
-      font-weight: 700;
-      letter-spacing: 0.5px;
-      background: linear-gradient(90deg, #60a5fa, #c084fc);
-      -webkit-background-clip: text;
-      background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    .nav-links {
-      display: flex;
-      align-items: center;
-      gap: 20px;
-    }
-
-    .nav-links a {
-      color: #94a3b8;
-      text-decoration: none;
-      font-size: 14px;
-      font-weight: 500;
-      transition: color 0.2s;
-    }
-
-    .nav-links a:hover {
-      color: #f8fafc;
-    }
-
-    .status-container {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      background: rgba(255, 255, 255, 0.05);
-      padding: 8px 16px;
-      border-radius: 9999px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    #status-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: #ef4444;
-      transition: background 0.3s;
-    }
-
-    #status-dot.connected {
-      background: #10b981;
-      box-shadow: 0 0 10px rgba(16, 185, 129, 0.6);
-      animation: pulse 2s infinite;
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
-    }
-
-    #status-text {
-      font-size: 13px;
-      font-weight: 500;
-      color: #94a3b8;
-    }
+    .logo { font-size: 20px; font-weight: 800; color: #00ff88; text-transform: uppercase; }
+    .logo span { color: #fff; }
+    .nav-right { display: flex; align-items: center; gap: 20px; }
+    .nav-link { font-size: 13px; font-weight: 600; color: #888; text-decoration: none; transition: color 0.2s; }
+    .nav-link:hover { color: #fff; }
+    .live-badge { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #888; background: #111; border: 1px solid #222; padding: 5px 12px; border-radius: 99px; }
+    .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #ef4444; }
+    .live-dot.on { background: #00ff88; box-shadow: 0 0 8px rgba(0,255,136,0.6); animation: blink 2s infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
 
     main {
-      flex: 1;
-      max-width: 1000px;
-      width: 100%;
-      margin: 40px auto;
-      padding: 0 24px;
-      display: grid;
-      grid-template-columns: 2fr 1fr;
-      gap: 32px;
-    }
-
-    .section-title {
-      font-size: 15px;
-      font-weight: 600;
-      color: #cbd5e1;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      margin-bottom: 20px;
+      flex: 1; max-width: 1000px; width: 100%;
+      margin: 40px auto; padding: 0 24px;
+      display: grid; grid-template-columns: 2fr 1fr; gap: 32px;
     }
 
     .panel {
-      background: rgba(30, 41, 59, 0.5);
-      backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 16px;
-      padding: 24px;
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+      background: #111; border: 1px solid #222;
+      border-radius: 16px; padding: 24px;
     }
 
-    .order-list {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
+    .section-title {
+      font-size: 12px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 2px;
+      color: #888; margin-bottom: 20px;
     }
+
+    .order-list { display: flex; flex-direction: column; gap: 12px; }
 
     .order-card {
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      border-radius: 12px;
-      padding: 16px 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      transition: transform 0.2s, background 0.2s;
-      animation: fadeIn 0.4s ease-out;
+      background: #1a1a1a; border: 1px solid #222;
+      border-radius: 12px; padding: 14px 18px;
+      display: flex; justify-content: space-between; align-items: center;
+      transition: transform 0.2s, border-color 0.2s;
+      animation: fadeIn 0.3s ease;
     }
+    .order-card:hover { transform: translateY(-2px); border-color: #333; }
+    .order-card.updated { animation: flash 1s ease; }
 
-    .order-card:hover {
-      background: rgba(255, 255, 255, 0.06);
-      transform: translateY(-2px);
-    }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes flash { 0%{border-color:#00ff88;box-shadow:0 0 10px rgba(0,255,136,0.15)} 100%{border-color:#222;box-shadow:none} }
 
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
+    .order-info { display: flex; flex-direction: column; gap: 3px; }
+    .order-id { font-size: 11px; color: #555; font-weight: 700; }
+    .customer-name { font-size: 15px; font-weight: 700; }
+    .product-name { font-size: 13px; color: #888; }
 
-    .order-card.updated {
-      animation: highlight 1s ease-out;
-    }
+    .badge { font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 99px; text-transform: uppercase; }
+    .badge-pending { background: rgba(234,179,8,0.12); color: #eab308; border: 1px solid rgba(234,179,8,0.2); }
+    .badge-shipped { background: rgba(56,189,248,0.12); color: #38bdf8; border: 1px solid rgba(56,189,248,0.2); }
+    .badge-delivered { background: rgba(0,255,136,0.12); color: #00ff88; border: 1px solid rgba(0,255,136,0.2); }
 
-    @keyframes highlight {
-      0% { box-shadow: 0 0 0 2px #60a5fa; background: rgba(96, 165, 250, 0.1); }
-      100% { box-shadow: 0 0 0 0px transparent; background: rgba(255, 255, 255, 0.03); }
-    }
-
-    .order-info {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .order-id {
-      font-size: 12px;
-      color: #64748b;
-      font-weight: 600;
-    }
-
-    .customer-name {
-      font-size: 16px;
-      font-weight: 600;
-      color: #f1f5f9;
-    }
-
-    .product-name {
-      font-size: 14px;
-      color: #94a3b8;
-    }
-
-    .status-badge {
-      font-size: 12px;
-      font-weight: 600;
-      padding: 6px 12px;
-      border-radius: 9999px;
-      text-transform: capitalize;
-    }
-
-    .status-pending { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.2); }
-    .status-shipped { background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.2); }
-    .status-delivered { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.2); }
-
-    .form-group {
-      margin-bottom: 16px;
-    }
-
+    .form-group { margin-bottom: 14px; }
     input, select {
-      width: 100%;
-      background: rgba(15, 23, 42, 0.6);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      color: #f8fafc;
-      padding: 10px 14px;
-      border-radius: 8px;
-      font-size: 14px;
-      outline: none;
+      width: 100%; background: #0a0a0a; border: 1px solid #222;
+      color: #fff; padding: 10px 14px; border-radius: 8px;
+      font-size: 13px; font-family: inherit; outline: none;
       transition: border-color 0.2s;
     }
-
-    input::placeholder {
-      color: #64748b;
-    }
-
-    input:focus, select:focus {
-      border-color: #60a5fa;
-    }
+    input::placeholder { color: #444; }
+    input:focus, select:focus { border-color: #00ff88; }
 
     button {
-      width: 100%;
-      padding: 10px 16px;
-      border: none;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
+      width: 100%; padding: 10px 16px; border: none;
+      border-radius: 8px; font-size: 13px; font-weight: 700;
+      font-family: inherit; cursor: pointer;
       transition: opacity 0.2s, transform 0.1s;
     }
-
     button:hover { opacity: 0.9; }
     button:active { transform: scale(0.98); }
 
-    .btn-primary { background: linear-gradient(90deg, #3b82f6, #8b5cf6); color: white; }
-    .btn-warning { background: linear-gradient(90deg, #f59e0b, #ea580c); color: white; margin-top: 10px; }
-    .btn-danger { background: linear-gradient(90deg, #ef4444, #b91c1c); color: white; margin-top: 10px; }
+    .btn-green { background: #00ff88; color: #000; }
+    .btn-orange { background: #f59e0b; color: #000; margin-top: 10px; }
+    .btn-red { background: #ef4444; color: #fff; margin-top: 10px; }
 
-    .empty-state {
-      text-align: center;
-      padding: 40px 20px;
-      color: #64748b;
-      font-size: 15px;
-    }
+    .divider { height: 1px; background: #222; margin: 20px 0; }
+    .empty { text-align: center; padding: 40px 20px; color: #444; font-size: 14px; }
 
-    .divider {
-      height: 1px;
-      background: rgba(255, 255, 255, 0.1);
-      margin: 24px 0;
-    }
-
-    /* Scrollbar */
-    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar { width: 5px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+    ::-webkit-scrollbar-thumb { background: #222; border-radius: 99px; }
   </style>
 </head>
 <body>
 
-<header>
-  <h1>Order Dashboard (Admin Mode)</h1>
-  <div class="nav-links">
-    <a href="/">Go to Storefront</a>
-    <div class="status-container">
-      <span id="status-dot"></span>
-      <span id="status-text">Connecting...</span>
+<nav>
+  <div class="logo"><em>Skibidi</em><span> Admin</span></div>
+  <div class="nav-right">
+    <a href="/" class="nav-link">← Back to Store</a>
+    <div class="live-badge">
+      <span id="ws-dot" class="live-dot"></span>
+      <span id="ws-text">Offline</span>
     </div>
   </div>
-</header>
+</nav>
 
-<main>
+<main id="admin-content" style="display: none;">
   <div class="panel">
-    <h2 class="section-title">Active System Orders</h2>
+    <div class="section-title">All Orders</div>
     <div id="order-list" class="order-list">
-      <div class="empty-state" id="loading">Loading orders...</div>
+      <div class="empty">Loading...</div>
     </div>
   </div>
 
   <div class="panel">
-    <h2 class="section-title">Admin Controls</h2>
-    
-    <div class="form-group">
-      <input id="customer" type="text" placeholder="Customer Name" />
-    </div>
-    <div class="form-group">
-      <input id="customer-email" type="email" placeholder="Customer Email (for Alerts)" />
-    </div>
-    <div class="form-group">
-      <input id="product" type="text" placeholder="Product Name" />
-    </div>
-    <button class="btn-primary" onclick="createOrder()">Create Manual Order</button>
+    <div class="section-title">Controls</div>
+    <div class="form-group"><input id="inp-name" type="text" placeholder="Customer Name"></div>
+    <div class="form-group"><input id="inp-email" type="email" placeholder="Customer Email"></div>
+    <div class="form-group"><input id="inp-product" type="text" placeholder="Product Name"></div>
+    <button class="btn-green" onclick="createOrder()">Create Order</button>
 
     <div class="divider"></div>
 
+    <div class="form-group"><input id="inp-id" type="number" placeholder="Order ID"></div>
     <div class="form-group">
-      <input id="update-id" type="number" placeholder="Order ID" />
-    </div>
-    <div class="form-group">
-      <select id="new-status">
+      <select id="inp-status">
         <option value="pending">Pending</option>
         <option value="shipped">Shipped</option>
         <option value="delivered">Delivered</option>
       </select>
     </div>
-    <button class="btn-warning" onclick="updateOrder()">Trigger Status Shift</button>
-    <button class="btn-danger" onclick="deleteOrder()">Remove Order</button>
+    <button class="btn-orange" onclick="updateOrder()">Update Status</button>
+    <button class="btn-red" onclick="deleteOrder()">Delete Order</button>
   </div>
 </main>
 
+<section id="admin-gate" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 80vh; text-align: center;">
+  <h1 style="font-size: 32px; font-weight: 800; margin-bottom: 16px;">Admin Access Required</h1>
+  <p style="color: #888; margin-bottom: 24px;">Please sign in with the verified Skibidi Shop owner account.</p>
+  <button class="btn-green" style="max-width: 250px; padding: 14px; font-size: 15px;" onclick="googleLogin()">Admin Login via Google</button>
+  <p id="auth-error" style="color: #ef4444; margin-top: 16px; font-size: 14px; font-weight: 700; display: none;"></p>
+</section>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+
 <script>
-  const orderList = document.getElementById('order-list');
-  const dot = document.getElementById('status-dot');
-  const text = document.getElementById('status-text');
+  let auth;
+  const ADMIN_EMAIL = 'skibidi.businessguru@gmail.com';
+
+  async function initAdmin() {
+    const res = await fetch('/api/config');
+    const config = await res.json();
+    firebase.initializeApp(config);
+    
+    auth = firebase.auth();
+
+    auth.onAuthStateChanged((user) => {
+      if (user) {
+        if (user.email === ADMIN_EMAIL) {
+          document.getElementById('admin-gate').style.display = 'none';
+          document.getElementById('admin-content').style.display = 'grid';
+          load();
+        } else {
+          document.getElementById('auth-error').textContent = 'Access Denied: You are not the Skibidi Shop admin.';
+          document.getElementById('auth-error').style.display = 'block';
+          auth.signOut();
+        }
+      } else {
+        document.getElementById('admin-gate').style.display = 'flex';
+        document.getElementById('admin-content').style.display = 'none';
+      }
+    });
+  }
+
+  initAdmin();
+
+  function googleLogin() {
+    auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(console.error);
+  }
 
   let orders = [];
+  const list = document.getElementById('order-list');
 
-  async function loadInitialOrders() {
+  async function load() {
     try {
       const res = await fetch('/api/orders');
       orders = await res.json();
-      renderOrders();
-    } catch (err) {
-      orderList.innerHTML = `<div class="empty-state">Failed to load orders.</div>`;
-    }
+      render();
+    } catch { list.innerHTML = '<div class="empty">Failed to load</div>'; }
   }
 
-  function renderOrders() {
-    if (orders.length === 0) {
-      orderList.innerHTML = `<div class="empty-state">No active orders found.</div>`;
-      return;
-    }
-    
-    orderList.innerHTML = '';
-    orders.forEach(order => {
-      const card = createOrderCard(order);
-      orderList.appendChild(card);
+  function render() {
+    if (!orders.length) { list.innerHTML = '<div class="empty">No orders</div>'; return; }
+    list.innerHTML = '';
+    orders.forEach(o => {
+      const el = document.createElement('div');
+      el.className = 'order-card';
+      el.id = 'order-' + o.id;
+      el.innerHTML = `
+        <div class="order-info">
+          <span class="order-id">#${o.id} ${o.customer_email ? '· ' + o.customer_email : ''}</span>
+          <span class="customer-name">${o.customer_name}</span>
+          <span class="product-name">${o.product_name}</span>
+        </div>
+        <span class="badge badge-${o.status}">${o.status}</span>
+      `;
+      list.appendChild(el);
     });
   }
 
-  function createOrderCard(order) {
-    const div = document.createElement('div');
-    div.className = 'order-card';
-    div.id = `order-${order.id}`;
-    div.innerHTML = `
-      <div class="order-info">
-        <span class="order-id">#${order.id} ${order.customer_email ? `(${order.customer_email})` : ''}</span>
-        <span class="customer-name">${order.customer_name}</span>
-        <span class="product-name">${order.product_name}</span>
-      </div>
-      <span class="status-badge status-${order.status}">${order.status}</span>
-    `;
-    return div;
-  }
-
-  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const ws = new WebSocket(`${protocol}//${location.host}`);
-
-  ws.onopen = () => {
-    dot.classList.add('connected');
-    text.textContent = 'Live';
-  };
-
-  ws.onclose = () => {
-    dot.classList.remove('connected');
-    text.textContent = 'Offline';
-  };
-
-  ws.onmessage = (event) => {
-    const msg = JSON.parse(event.data);
-    if (msg.type !== 'order_change') return;
-
-    const { operation, data } = msg;
-
-    if (operation === 'INSERT') {
-      orders.unshift(data);
-      const card = createOrderCard(data);
-      const emptyState = orderList.querySelector('.empty-state');
-      if (emptyState) emptyState.remove();
-      orderList.insertBefore(card, orderList.firstChild);
-    } 
-    else if (operation === 'UPDATE') {
-      const index = orders.findIndex(o => o.id === data.id);
-      if (index !== -1) {
-        orders[index] = data;
-        const existingCard = document.getElementById(`order-${data.id}`);
-        if (existingCard) {
-          const newCard = createOrderCard(data);
-          newCard.classList.add('updated');
-          orderList.replaceChild(newCard, existingCard);
-        }
-      }
-    } 
-    else if (operation === 'DELETE') {
-      orders = orders.filter(o => o.id !== data.id);
-      const card = document.getElementById(`order-${data.id}`);
-      if (card) card.remove();
-      
-      if (orders.length === 0) {
-        orderList.innerHTML = `<div class="empty-state">No active orders found.</div>`;
-      }
-    }
-  };
-
   async function createOrder() {
-    const customer_name = document.getElementById('customer').value;
-    const customer_email = document.getElementById('customer-email').value || null;
-    const product_name = document.getElementById('product').value;
-    if (!customer_name || !product_name) return;
-    
+    const name = document.getElementById('inp-name').value;
+    const email = document.getElementById('inp-email').value || null;
+    const product = document.getElementById('inp-product').value;
+    if (!name || !product) return;
     await fetch('/api/orders', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ customer_name, customer_email, product_name }),
+      body: JSON.stringify({ customer_name: name, customer_email: email, product_name: product })
     });
-    
-    document.getElementById('customer').value = '';
-    document.getElementById('customer-email').value = '';
-    document.getElementById('product').value = '';
+    document.getElementById('inp-name').value = '';
+    document.getElementById('inp-email').value = '';
+    document.getElementById('inp-product').value = '';
   }
 
   async function updateOrder() {
-    const id = document.getElementById('update-id').value;
-    const status = document.getElementById('new-status').value;
+    const id = document.getElementById('inp-id').value;
+    const status = document.getElementById('inp-status').value;
     if (!id) return;
-    
-    await fetch(`/api/orders/${id}`, {
+    await fetch('/api/orders/' + id, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status })
     });
-    
-    document.getElementById('update-id').value = '';
+    document.getElementById('inp-id').value = '';
   }
 
   async function deleteOrder() {
-    const id = document.getElementById('update-id').value;
+    const id = document.getElementById('inp-id').value;
     if (!id) return;
-    
-    await fetch(`/api/orders/${id}`, { method: 'DELETE' });
-    document.getElementById('update-id').value = '';
+    await fetch('/api/orders/' + id, { method: 'DELETE' });
+    document.getElementById('inp-id').value = '';
   }
 
-  loadInitialOrders();
+  const dot = document.getElementById('ws-dot');
+  const txt = document.getElementById('ws-text');
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const ws = new WebSocket(proto + '//' + location.host);
+
+  ws.onopen = () => { dot.classList.add('on'); txt.textContent = 'Live'; };
+  ws.onclose = () => { dot.classList.remove('on'); txt.textContent = 'Offline'; };
+
+  ws.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.type !== 'order_change') return;
+
+    if (msg.operation === 'INSERT') {
+      orders.unshift(msg.data);
+      render();
+    } else if (msg.operation === 'UPDATE') {
+      const idx = orders.findIndex(o => o.id === msg.data.id);
+      if (idx !== -1) { orders[idx] = msg.data; render(); }
+      const card = document.getElementById('order-' + msg.data.id);
+      if (card) card.classList.add('updated');
+    } else if (msg.operation === 'DELETE') {
+      orders = orders.filter(o => o.id !== msg.data.id);
+      render();
+    }
+  };
+
+  load();
 </script>
 </body>
 </html>

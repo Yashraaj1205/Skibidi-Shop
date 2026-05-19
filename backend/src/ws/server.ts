@@ -7,37 +7,24 @@ export function createWebSocketServer(httpServer: Server): WebSocketServer {
   const wss = new WebSocketServer({ server: httpServer });
 
   wss.on('connection', (ws: WebSocket) => {
-    console.log(`↑ Client connected   | total: ${wss.clients.size}`);
-
     let isAlive = true;
     ws.on('pong', () => { isAlive = true; });
 
-    const pingInterval = setInterval(() => {
+    const ping = setInterval(() => {
       if (!isAlive) return ws.terminate();
       isAlive = false;
       ws.ping();
     }, 30_000);
 
-    ws.on('close', () => {
-      clearInterval(pingInterval);
-      console.log(`↓ Client disconnected | total: ${wss.clients.size}`);
-    });
-
-    ws.on('error', (err) => console.error('WebSocket client error:', err));
+    ws.on('close', () => clearInterval(ping));
+    ws.on('error', console.error);
   });
 
   dbEvents.on('order_change', (event: OrderEvent) => {
-    const message = JSON.stringify({ type: 'order_change', ...event });
-    let sent = 0;
-
+    const msg = JSON.stringify({ type: 'order_change', ...event });
     wss.clients.forEach((client) => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(message);
-        sent++;
-      }
+      if (client.readyState === WebSocket.OPEN) client.send(msg);
     });
-
-    console.log(`⚡ ${event.operation} broadcasted to ${sent} client(s) — order #${event.data.id}`);
   });
 
   return wss;

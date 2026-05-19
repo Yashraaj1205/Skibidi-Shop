@@ -16,35 +16,28 @@ export async function startDBListener(): Promise<void> {
 
   await client.connect();
   await client.query('LISTEN orders_channel');
-  console.log('✓ Listening on PostgreSQL channel: orders_channel');
+  console.log('Listening on orders_channel');
 
   client.on('notification', (msg) => {
     if (!msg.payload) return;
     try {
       const event: OrderEvent = JSON.parse(msg.payload);
-      
-      // Dispatch emails in a non-blocking background fire-and-forget loop
+
       if (event.data.customer_email) {
         if (event.operation === 'INSERT') {
-          sendOrderConfirmationEmail(event.data.customer_email, event.data).catch((err) =>
-            console.error('Failed to trigger confirmation email in background:', err)
-          );
+          sendOrderConfirmationEmail(event.data.customer_email, event.data).catch(console.error);
         } else if (event.operation === 'UPDATE') {
-          // Check if status changed by looking at database if needed, or simply send on any update.
-          // Since patch is only used for status updates, simple check is perfect.
-          sendOrderStatusUpdateEmail(event.data.customer_email, event.data).catch((err) =>
-            console.error('Failed to trigger status update email in background:', err)
-          );
+          sendOrderStatusUpdateEmail(event.data.customer_email, event.data).catch(console.error);
         }
       }
 
       dbEvents.emit('order_change', event);
     } catch (err) {
-      console.error('Failed to parse notification payload:', err);
+      console.error('Failed to parse notification:', err);
     }
   });
 
   client.on('error', (err) => {
-    console.error('DB listener connection error:', err);
+    console.error('DB listener error:', err);
   });
 }

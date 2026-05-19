@@ -1,176 +1,98 @@
-# Real-Time Order Updates
+# Skibidi Shop — Real-Time E-Commerce Engine
 
-A robust backend system and frontend dashboard that handles and pushes database changes to connected clients **instantly**.
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?logo=postgresql&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-43853D?logo=node.js&logoColor=white)
 
-When any row in the `orders` table is inserted, updated, or deleted, every connected browser client receives the change and reflects it immediately in the UI.
+An industry-grade, event-driven e-commerce platform designed to demonstrate real-time bidirectional communication without continuous polling. It leverages native database triggers to instantly push order state changes to connected client dashboards via WebSockets, ensuring zero-latency inventory and order tracking.
 
----
+## 🚀 Key Features
 
-## Architecture Overview
-
-The system utilizes native PostgreSQL pub/sub features combined with a Node.js WebSocket server to efficiently broadcast changes to clients.
-
-1. **Database Trigger:** PostgreSQL `AFTER` trigger fires on `INSERT`, `UPDATE`, or `DELETE`.
-2. **Notification Layer:** Trigger calls `pg_notify` to send a JSON payload.
-3. **Backend Listener:** Node.js listens using `LISTEN orders_channel` and emits an event.
-4. **WebSocket Broadcast:** The Node.js WebSocket server broadcasts the JSON payload to all connected clients.
-5. **Client Rendering:** The frontend dashboard maintains a stateful list of active orders and dynamically mutates the DOM in response to WebSocket events.
-
----
-
-## Design Decisions & Technical Choices
-
-This system is engineered for maximum performance, minimal database load, and instant notification propagation. Below are the key design choices made:
-
-1. **Event-Driven Architecture with Native PostgreSQL Triggers**
-   * **The Choice:** We used native PostgreSQL triggers (`AFTER INSERT OR UPDATE OR DELETE`) combined with `LISTEN/NOTIFY`.
-   * **The Rationale:** This makes the database the *single source of truth*. No matter *how* data changes—whether through our REST API, directly in a psql console, or via a third-party administrative tool—triggers guarantee that the event is immediately captured and sent. This ensures 100% data consistency.
-   * **Efficiency:** Resources are consumed only when an actual change occurs, achieving near-zero idle overhead and eliminating the need for constant background querying.
-
-2. **Lightweight WebSocket Server (`ws`)**
-   * **The Choice:** A raw, low-overhead Node.js `ws` server attached directly to the existing Express HTTP port.
-   * **The Rationale:** By using raw WebSockets, we keep the message frame sizes incredibly small, minimizing latency and maximizing memory efficiency on the server.
-   * **Robust Heartbeats:** We implemented a custom ping/pong connection validation scheme in `server.ts` to ensure dead connections are aggressively pruned, preventing memory leaks and resource exhaustion.
-
-3. **Stateful Single-Page Frontend**
-   * **The Choice:** Plain vanilla HTML5, CSS3, and JavaScript utilizing clean DOM manipulation.
-   * **The Rationale:** Using vanilla JS allowed us to build an incredibly snappy, high-performance dashboard that mounts instantly and runs smoothly.
-   * **Dynamic DOM Sync:** The UI acts as a stateful client—it retrieves existing orders via a GET request on load, and then mutates individual cards directly in-place when WebSocket events occur.
+- **Event-Driven Architecture**: Utilizes PostgreSQL native `LISTEN/NOTIFY` channels to eliminate database polling. Row-level mutations instantly broadcast JSON payloads to the Node.js daemon.
+- **Bi-Directional WebSockets**: A lightweight `ws` server propagates state changes to authenticated frontend clients in milliseconds.
+- **Secure Authentication**: Integrated Google OAuth via Firebase Admin SDK. Cryptographically validates JWT ID tokens in the Express middleware before granting access to REST endpoints.
+- **Asynchronous Notifications**: A background worker queue intercepts database events to dispatch dynamic, branded HTML email receipts and shipping updates via Nodemailer (SMTP).
+- **Premium UI/UX**: Hand-coded, dependency-free vanilla HTML/CSS frontend featuring a dark neon-green glassmorphism aesthetic, Space Grotesk typography, and micro-animations.
 
 ---
 
-## Tech Stack
+## 🏗️ System Architecture
 
-| Layer | Technology | Reason |
-|---|---|---|
-| Runtime | Node.js + TypeScript | High performance, type safety |
-| Framework | Express | Minimal HTTP server for the REST API |
-| Database | PostgreSQL 16 | Native LISTEN/NOTIFY |
-| Real-time | `ws` (WebSocket) | Lightweight, minimal overhead |
-| Containerisation | Docker Compose | One-command Postgres setup |
-
----
-
-## Prerequisites
-
-- [Node.js](https://nodejs.org/) v18 or later
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-- npm (comes with Node.js)
+1. **Client Interaction**: A customer authenticates via Google OAuth and creates an order via a secure REST `POST /api/store/orders`.
+2. **Database Mutation**: The Express server inserts the order into the PostgreSQL database.
+3. **PL/pgSQL Trigger**: A native database trigger detects the `INSERT/UPDATE` and executes `pg_notify()`, emitting the row payload to the `orders_channel`.
+4. **Backend Daemon**: The Node.js `pg.Client` listens to the channel, parses the JSON payload, and emits an internal Node.js event.
+5. **Real-Time Broadcast**: 
+   - The WebSocket server pushes the update to the specific customer's browser.
+   - The Nodemailer engine asynchronously fires off a tracking email.
 
 ---
 
-## Setup and Run
+## 🛠️ Technology Stack
 
-### 1. Start PostgreSQL
+| Layer | Technology | Purpose |
+| :--- | :--- | :--- |
+| **Frontend** | Vanilla HTML, CSS, JS | High-performance, zero-dependency storefront and admin portal |
+| **Backend** | Node.js, Express, TypeScript | REST API, Business Logic, and WebSocket Broadcasting |
+| **Database** | PostgreSQL | Relational data, `pg_notify` event streams, PL/pgSQL triggers |
+| **Auth** | Firebase Admin SDK | JWT validation for Google OAuth identities |
+| **Services** | Nodemailer | Asynchronous SMTP tracking emails |
 
+---
+
+## ⚙️ Local Development Setup
+
+### 1. Prerequisites
+- [Node.js v18+](https://nodejs.org/)
+- [Docker Desktop](https://www.docker.com/) (for local PostgreSQL)
+
+### 2. Installation
+Clone the repository and install dependencies:
 ```bash
-docker compose up -d
-```
-
-This starts a PostgreSQL 16 container on port 5432. The database, user, and password are preconfigured in `docker-compose.yml`.
-
-### 2. Install backend dependencies
-
-```bash
-cd backend
+git clone https://github.com/YourUsername/Your-New-Repo-Name.git
+cd Your-New-Repo-Name/backend
 npm install
 ```
 
-### 3. Setup Environment Variables
+### 3. Environment Configuration
+Create a `.env` file in the `backend/` directory:
+```env
+# Database
+DB_HOST=127.0.0.1
+DB_PORT=5433
+DB_NAME=apt_orders
+DB_USER=apt_user
+DB_PASSWORD=apt_pass
 
-Copy the provided example file which contains the local Docker credentials:
-```bash
-# Windows
-copy .env.example .env
+# SMTP Email
+SMTP_USER=your_email@gmail.com
+SMTP_PASS=your_app_password
 
-# Mac/Linux
-cp .env.example .env
+# Firebase (Dynamic Frontend Config)
+FIREBASE_API_KEY=your_api_key
+FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+FIREBASE_PROJECT_ID=your_project
+FIREBASE_STORAGE_BUCKET=your_project.firebasestorage.app
+FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+FIREBASE_APP_ID=your_app_id
 ```
+*(Ensure `firebase-service-key.json` is placed in the `backend/` root).*
 
-### 4. Start the backend server
-
+### 4. Run the Platform
+Start the PostgreSQL container:
 ```bash
+docker compose up -d
+```
+Boot the backend daemon (automatically runs migrations and seeds data):
+```bash
+cd backend
 npm run dev
 ```
 
-The server automatically sets up the database schemas, triggers, and WebSocket server on `http://localhost:3000`.
-
-### 4. Open the browser client
-
-Open `http://localhost:3000` in **two separate browser tabs**.
-
-Both tabs connect via WebSockets. The dashboard retrieves existing orders via the REST API and then switches to listening to live updates.
+### 5. Access
+- **Storefront**: `http://localhost:3000`
+- **Admin Dashboard**: `http://localhost:3000/admin.html`
 
 ---
-
-## Testing Real-Time Updates
-
-### Option A — Dashboard
-
-The page at `http://localhost:3000` has a **Manage** panel. Create, update, or delete orders using this panel. The dashboard will instantly update.
-
-### Option B — cURL
-
-**Create an order (triggers INSERT):**
-```bash
-curl -X POST http://localhost:3000/api/orders \
-  -H "Content-Type: application/json" \
-  -d '{"customer_name": "Arjun Mehta", "product_name": "Nifty50 Strategy"}'
-```
-
-**Update status (triggers UPDATE):**
-```bash
-curl -X PATCH http://localhost:3000/api/orders/1 \
-  -H "Content-Type: application/json" \
-  -d '{"status": "shipped"}'
-```
-
-**Delete an order (triggers DELETE):**
-```bash
-curl -X DELETE http://localhost:3000/api/orders/1
-```
-
-Every command above will instantly sync with any open dashboard.
-
----
-
-## Project Structure
-
-```
-apt-realtime-orders/
-├── docker-compose.yml         
-├── README.md
-│
-├── backend/
-│   ├── package.json
-│   ├── tsconfig.json
-│   └── src/
-│       ├── index.ts           
-│       ├── types.ts           
-│       │
-│       ├── db/
-│       │   ├── pool.ts        
-│       │   ├── migrate.ts     
-│       │   └── listener.ts    
-│       │
-│       ├── ws/
-│       │   └── server.ts      
-│       │
-│       └── api/
-│           └── routes.ts      
-│
-└── client/
-    └── index.html             
-```
-
----
-
-## Stopping the Server
-
-```bash
-# Stop the backend: Ctrl+C in the terminal
-# Stop and remove the PostgreSQL container
-docker compose down
-# To also delete all stored data
-docker compose down -v
-```
+*Designed and Developed for high-performance retail environments.*
