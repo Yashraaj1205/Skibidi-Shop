@@ -29,12 +29,12 @@ async function main() {
 
   app.get('/api/config', (_req, res) => {
     res.json({
-      apiKey: process.env.FIREBASE_API_KEY || "AIzaSyBmNkXx4iBGAuI-lVUXHedNsZMLHUW-qJs",
-      authDomain: process.env.FIREBASE_AUTH_DOMAIN || "realtime-orders-12.firebaseapp.com",
-      projectId: process.env.FIREBASE_PROJECT_ID || "realtime-orders-12",
-      storageBucket: process.env.FIREBASE_STORAGE_BUCKET || "realtime-orders-12.firebasestorage.app",
-      messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || "524467064012",
-      appId: process.env.FIREBASE_APP_ID || "1:524467064012:web:b28e1c67fbaf8b18b88669"
+      apiKey: process.env.FIREBASE_API_KEY || "",
+      authDomain: process.env.FIREBASE_AUTH_DOMAIN || "",
+      projectId: process.env.FIREBASE_PROJECT_ID || "",
+      storageBucket: process.env.FIREBASE_STORAGE_BUCKET || "",
+      messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || "",
+      appId: process.env.FIREBASE_APP_ID || ""
     });
   });
 
