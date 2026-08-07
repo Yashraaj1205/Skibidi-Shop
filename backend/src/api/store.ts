@@ -1,14 +1,15 @@
 import { Router, Response } from 'express';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 import { pool } from '../db/pool';
+import { requireUser, sendError, serverError } from '../utils/http';
 
 const router = Router();
 
 router.post('/orders', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
-  if (!req.user) { res.status(401).json({ error: 'Unauthorized' }); return; }
+  if (!requireUser(req, res)) return;
 
   const { product_id } = req.body;
-  if (!product_id) { res.status(400).json({ error: 'product_id is required' }); return; }
+  if (!product_id) { sendError(res, 400, 'product_id is required'); return; }
 
   try {
     const userResult = await pool.query(
@@ -16,7 +17,7 @@ router.post('/orders', authenticateToken, async (req: AuthenticatedRequest, res:
       [req.user.firebase_uid]
     );
     if (userResult.rowCount === 0) {
-      res.status(400).json({ error: 'Profile not synced' });
+      sendError(res, 400, 'Profile not synced');
       return;
     }
 
@@ -27,7 +28,7 @@ router.post('/orders', authenticateToken, async (req: AuthenticatedRequest, res:
       [product_id]
     );
     if (productResult.rowCount === 0) {
-      res.status(404).json({ error: 'Product not found or out of stock' });
+      sendError(res, 404, 'Product not found or out of stock');
       return;
     }
 
@@ -41,13 +42,12 @@ router.post('/orders', authenticateToken, async (req: AuthenticatedRequest, res:
 
     res.status(201).json(orderResult.rows[0]);
   } catch (err) {
-    console.error('Order placement failed:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    serverError(res, err, 'Order placement failed');
   }
 });
 
 router.get('/my-orders', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
-  if (!req.user) { res.status(401).json({ error: 'Unauthorized' }); return; }
+  if (!requireUser(req, res)) return;
 
   try {
     const result = await pool.query(
@@ -57,8 +57,7 @@ router.get('/my-orders', authenticateToken, async (req: AuthenticatedRequest, re
     );
     res.json(result.rows);
   } catch (err) {
-    console.error('Orders fetch failed:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    serverError(res, err, 'Orders fetch failed');
   }
 });
 
