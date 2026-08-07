@@ -1,41 +1,29 @@
-import { Router, Response } from 'express';
-import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
-import { pool } from '../db/pool';
+import { Response, Router } from 'express';
+import { asyncHandler } from '../lib/asyncHandler';
+import { AuthenticatedRequest, authenticateToken, currentUser } from '../middleware/auth';
 
 const router = Router();
 
-router.post('/sync', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
-  if (!req.user) { res.status(401).json({ error: 'Unauthorized' }); return; }
+router.use(authenticateToken);
 
-  const { firebase_uid, email, display_name, photo_url } = req.user;
-
-  try {
-    const result = await pool.query(
-      `INSERT INTO users (firebase_uid, email, display_name, photo_url)
-       VALUES ($1, $2, $3, $4)
-       ON CONFLICT (firebase_uid)
-       DO UPDATE SET email = $2, display_name = $3, photo_url = $4
-       RETURNING *`,
-      [firebase_uid, email, display_name, photo_url]
-    );
-    res.json(result.rows[0]);
-  } catch (err) {
-    console.error('Sync failed:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
+// Authenticating already upserts the profile and resolves roles, so both routes just report it.
+const me = asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const user = currentUser(req);
+  res.json({
+    id: user.user_id,
+    firebase_uid: user.firebase_uid,
+    email: user.email,
+    display_name: user.display_name,
+    photo_url: user.photo_url || null,
+    roles: user.roles,
+    is_admin: user.is_admin,
+    is_seller: user.is_seller,
+    seller_id: user.seller_id,
+    seller_status: user.seller_status
+  });
 });
 
-router.get('/me', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
-  if (!req.user) { res.status(401).json({ error: 'Unauthorized' }); return; }
-
-  try {
-    const result = await pool.query('SELECT * FROM users WHERE firebase_uid = $1', [req.user.firebase_uid]);
-    if (result.rowCount === 0) { res.status(404).json({ error: 'Not found' }); return; }
-    res.json(result.rows[0]);
-  } catch (err) {
-    console.error('Profile fetch failed:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+router.post('/sync', me);
+router.get('/me', me);
 
 export default router;

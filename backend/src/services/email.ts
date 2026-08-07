@@ -9,29 +9,46 @@ const transporter = nodemailer.createTransport({
   auth: { user: smtpUser, pass: smtpPass }
 });
 
+const STEP_PROGRESS: Record<string, number> = {
+  pending: 25,
+  paid: 50,
+  shipped: 75,
+  delivered: 100,
+  cancelled: 100
+};
+
+export function formatMoney(cents: number, currency = 'USD'): string {
+  return `${currency === 'USD' ? '$' : `${currency} `}${(cents / 100).toFixed(2)}`;
+}
+
 function progressHTML(status: string): string {
-  const pct = status === 'pending' ? '33%' : status === 'shipped' ? '66%' : '100%';
-  const c = (s: string, active: boolean) => active ? '#00ff88' : '#555';
-  const pending = true;
-  const shipped = status === 'shipped' || status === 'delivered';
-  const delivered = status === 'delivered';
+  const reached = STEP_PROGRESS[status] ?? 25;
+  const c = (threshold: number) => (reached >= threshold ? '#00ff88' : '#555');
 
   return `
     <div style="margin:24px 0;background:#222;height:8px;border-radius:99px;overflow:hidden;">
-      <div style="background:linear-gradient(90deg,#00ff88,#7c3aed);height:100%;width:${pct};border-radius:99px;"></div>
+      <div style="background:linear-gradient(90deg,#00ff88,#7c3aed);height:100%;width:${reached}%;border-radius:99px;"></div>
     </div>
     <table style="width:100%;text-align:center;font-size:12px;font-weight:600;">
       <tr>
-        <td style="color:${c('pending', pending)};">Ordered</td>
-        <td style="color:${c('shipped', shipped)};">Shipped</td>
-        <td style="color:${c('delivered', delivered)};">Delivered</td>
+        <td style="color:${c(25)};">Ordered</td>
+        <td style="color:${c(50)};">Paid</td>
+        <td style="color:${c(75)};">Shipped</td>
+        <td style="color:${c(100)};">Delivered</td>
       </tr>
     </table>
   `;
 }
 
 function template(title: string, name: string, body: string, order: Order): string {
-  const statusColor = order.status === 'pending' ? '#eab308' : order.status === 'shipped' ? '#38bdf8' : '#00ff88';
+  const statusColor =
+    order.status === 'pending' || order.status === 'paid'
+      ? '#eab308'
+      : order.status === 'cancelled'
+        ? '#ef4444'
+        : order.status === 'shipped'
+          ? '#38bdf8'
+          : '#00ff88';
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title></head>
 <body style="margin:0;padding:0;background:#0a0a0a;font-family:-apple-system,sans-serif;">
@@ -50,13 +67,17 @@ function template(title: string, name: string, body: string, order: Order): stri
           <td align="right" style="font-size:11px;color:#666;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Status</td>
         </tr>
         <tr>
-          <td style="padding-top:6px;font-size:18px;color:#fff;font-weight:700;">#${order.id}</td>
+          <td style="padding-top:6px;font-size:18px;color:#fff;font-weight:700;">${order.order_number}</td>
           <td align="right" style="padding-top:6px;">
             <span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:99px;text-transform:uppercase;background:${statusColor}22;color:${statusColor};border:1px solid ${statusColor}33;">${order.status}</span>
           </td>
         </tr>
         <tr><td colspan="2" style="border-top:1px solid #222;padding-top:14px;margin-top:14px;font-size:13px;color:#888;">Product</td></tr>
         <tr><td colspan="2" style="font-size:16px;color:#fff;font-weight:600;padding-top:4px;">${order.product_name}</td></tr>
+        <tr>
+          <td style="padding-top:14px;font-size:13px;color:#888;">Total</td>
+          <td align="right" style="padding-top:14px;font-size:16px;color:#fff;font-weight:700;">${formatMoney(order.total_cents, order.currency)}</td>
+        </tr>
       </table>
     </div>
     ${progressHTML(order.status)}
@@ -75,9 +96,9 @@ export async function sendOrderConfirmationEmail(toEmail: string, order: Order):
     await transporter.sendMail({
       from: `"Skibidi Shop" <${smtpUser}>`,
       to: toEmail,
-      subject: `Order Confirmed #${order.id} — Skibidi Shop`,
+      subject: `Order Confirmed ${order.order_number} — Skibidi Shop`,
       html: template(
-        `Order #${order.id} Confirmed`,
+        `Order ${order.order_number} Confirmed`,
         order.customer_name,
         '<p>Your order has been placed successfully! We\'re preparing it for shipment. Track your order in real-time on the storefront.</p>',
         order
@@ -94,16 +115,18 @@ export async function sendOrderStatusUpdateEmail(toEmail: string, order: Order):
 
   const msg = order.status === 'delivered'
     ? '<p>Your order has been delivered! Hope you love it.</p>'
-    : `<p>Your order status has been updated to <strong>${order.status}</strong>. It's on the way!</p>`;
+    : order.status === 'cancelled'
+      ? '<p>Your order has been cancelled and any payment will be refunded.</p>'
+      : `<p>Your order status has been updated to <strong>${order.status}</strong>. It's on the way!</p>`;
 
-  const emoji = order.status === 'delivered' ? '🎉' : '🚚';
+  const emoji = order.status === 'delivered' ? '🎉' : order.status === 'cancelled' ? '⚠️' : '🚚';
 
   try {
     await transporter.sendMail({
       from: `"Skibidi Shop" <${smtpUser}>`,
       to: toEmail,
-      subject: `${emoji} Order #${order.id}: ${order.status.toUpperCase()} — Skibidi Shop`,
-      html: template(`Order #${order.id} ${order.status}`, order.customer_name, msg, order)
+      subject: `${emoji} Order ${order.order_number}: ${order.status.toUpperCase()} — Skibidi Shop`,
+      html: template(`Order ${order.order_number} ${order.status}`, order.customer_name, msg, order)
     });
     console.log(`Email sent to ${toEmail} (${order.status})`);
   } catch (err) {
