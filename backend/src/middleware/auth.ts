@@ -36,3 +36,25 @@ export async function authenticateToken(
     res.status(403).json({ error: 'Invalid or expired token' });
   }
 }
+
+export const adminEmails = (process.env.ADMIN_EMAILS || '')
+  .split(',')
+  .map((e) => e.trim().toLowerCase())
+  .filter(Boolean);
+
+export function isAdminEmail(email: string | undefined): boolean {
+  if (!email) return false;
+  return adminEmails.includes(email.toLowerCase());
+}
+
+export function requireAdmin(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): void {
+  if (!isAdminEmail(req.user?.email)) {
+    res.status(403).json({ error: 'Admin privileges required' });
+    return;
+  }
+  next();
+}

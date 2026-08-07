@@ -549,6 +549,16 @@
   let token = null;
   let products = [];
   let orders = [];
+  let ws = null;
+
+  function esc(value) {
+    return String(value === null || value === undefined ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
 
   async function initStore() {
     const res = await fetch('/api/config');
@@ -568,8 +578,10 @@
         await syncProfile();
         await loadProducts();
         await loadOrders();
+        connectWS();
       } else {
         token = null;
+        if (ws) { ws.close(); ws = null; }
         document.getElementById('user-pill').style.display = 'none';
         document.getElementById('auth-gate').style.display = 'flex';
         document.getElementById('store').classList.remove('active');
@@ -609,15 +621,15 @@
       el.className = 'card';
       el.innerHTML = `
         <div class="card-img-wrap">
-          <span class="card-cat">${p.category}</span>
-          <img class="card-img" src="${p.image_url}" alt="${p.name}" loading="lazy">
+          <span class="card-cat">${esc(p.category)}</span>
+          <img class="card-img" src="${encodeURI(p.image_url)}" alt="${esc(p.name)}" loading="lazy">
         </div>
         <div class="card-body">
-          <div class="card-name">${p.name}</div>
-          <div class="card-desc">${p.description}</div>
+          <div class="card-name">${esc(p.name)}</div>
+          <div class="card-desc">${esc(p.description)}</div>
           <div class="card-footer">
             <span class="card-price">$${Number(p.price).toFixed(2)}</span>
-            <button class="btn-buy" id="buy-${p.id}" onclick="buy(${p.id}, this)">Buy Now</button>
+            <button class="btn-buy" id="buy-${Number(p.id)}" onclick="buy(${Number(p.id)}, this)">Buy Now</button>
           </div>
         </div>
       `;
@@ -673,10 +685,10 @@
     const aDel = (s) => (s === 'delivered');
     div.innerHTML = `
       <div class="tracker-head">
-        <span class="tracker-id">#${o.id}</span>
-        <span class="badge badge-${o.status}">${o.status}</span>
+        <span class="tracker-id">#${Number(o.id)}</span>
+        <span class="badge badge-${esc(o.status)}">${esc(o.status)}</span>
       </div>
-      <div class="tracker-product">${o.product_name}</div>
+      <div class="tracker-product">${esc(o.product_name)}</div>
       <div class="progress-track"><div class="progress-fill" style="width:${progressWidth(o.status)}"></div></div>
       <div class="progress-labels">
         <span class="${a(o.status) ? 'active' : ''}">Ordered</span>
@@ -691,17 +703,21 @@
   const wsDot = document.getElementById('ws-dot');
   const wsText = document.getElementById('ws-text');
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const ws = new WebSocket(proto + '//' + location.host);
 
-  ws.onopen = () => { wsDot.classList.add('on'); wsText.textContent = 'Live'; };
-  ws.onclose = () => { wsDot.classList.remove('on'); wsText.textContent = 'Offline'; };
+  const onWSOpen = () => { wsDot.classList.add('on'); wsText.textContent = 'Live'; };
+  const onWSClose = () => { wsDot.classList.remove('on'); wsText.textContent = 'Offline'; ws = null; };
 
-  ws.onmessage = (e) => {
+  function connectWS() {
+    if (ws || !token) return;
+    ws = new WebSocket(proto + '//' + location.host + '/?token=' + encodeURIComponent(token));
+    ws.onopen = onWSOpen;
+    ws.onclose = onWSClose;
+    ws.onmessage = onWSMessage;
+  }
+
+  const onWSMessage = (e) => {
     const msg = JSON.parse(e.data);
     if (msg.type !== 'order_change') return;
-
-    const user = auth.currentUser;
-    if (!user || msg.data.customer_email !== user.email) return;
 
     if (msg.operation === 'INSERT') {
       orders.unshift(msg.data);
@@ -727,7 +743,7 @@
     const wrap = document.getElementById('toasts');
     const el = document.createElement('div');
     el.className = 'toast';
-    el.innerHTML = `<div class="toast-title">${title}</div><div class="toast-msg">${msg}</div>`;
+    el.innerHTML = `<div class="toast-title">${esc(title)}</div><div class="toast-msg">${esc(msg)}</div>`;
     wrap.appendChild(el);
     setTimeout(() => {
       el.style.opacity = '0';
