@@ -11,7 +11,7 @@ An industry-grade, event-driven e-commerce platform designed to demonstrate real
 
 - **Event-Driven Architecture**: Utilizes PostgreSQL native `LISTEN/NOTIFY` channels to eliminate database polling. Row-level mutations instantly broadcast JSON payloads to the Node.js daemon.
 - **Bi-Directional WebSockets**: A lightweight `ws` server propagates state changes to authenticated frontend clients in milliseconds.
-- **Secure Authentication**: Integrated Google OAuth via Firebase Admin SDK. Cryptographically validates JWT ID tokens in the Express middleware before granting access to REST endpoints.
+- **Secure Authentication**: Integrated Google OAuth via Firebase Admin SDK. Cryptographically validates JWT ID tokens in the Express middleware before granting access to REST endpoints and WebSocket connections. Admin endpoints (`/api/orders`) additionally require the caller's email to be listed in `ADMIN_EMAILS`.
 - **Asynchronous Notifications**: A background worker queue intercepts database events to dispatch dynamic, branded HTML email receipts and shipping updates via Nodemailer (SMTP).
 - **Premium UI/UX**: Hand-coded, dependency-free vanilla HTML/CSS frontend featuring a dark neon-green glassmorphism aesthetic, Space Grotesk typography, and micro-animations.
 
@@ -64,6 +64,12 @@ DB_PORT=5433
 DB_NAME=apt_orders
 DB_USER=apt_user
 DB_PASSWORD=apt_pass
+
+# Admin access (comma-separated emails allowed to use /api/orders)
+ADMIN_EMAILS=owner@example.com
+
+# CORS (comma-separated browser origins allowed to call the API)
+ALLOWED_ORIGINS=http://localhost:3000
 
 # SMTP Email
 SMTP_USER=your_email@gmail.com

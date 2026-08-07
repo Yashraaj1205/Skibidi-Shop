@@ -13,6 +13,7 @@ try {
   console.log('Firebase Admin initialized');
 } catch (err) {
   console.error('Firebase init failed:', err);
+  process.exit(1);
 }
 
 export const auth = admin.auth();

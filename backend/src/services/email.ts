@@ -9,6 +9,15 @@ const transporter = nodemailer.createTransport({
   auth: { user: smtpUser, pass: smtpPass }
 });
 
+function escapeHTML(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function progressHTML(status: string): string {
   const pct = status === 'pending' ? '33%' : status === 'shipped' ? '66%' : '100%';
   const c = (s: string, active: boolean) => active ? '#00ff88' : '#555';
@@ -33,7 +42,7 @@ function progressHTML(status: string): string {
 function template(title: string, name: string, body: string, order: Order): string {
   const statusColor = order.status === 'pending' ? '#eab308' : order.status === 'shipped' ? '#38bdf8' : '#00ff88';
 
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title></head>
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escapeHTML(title)}</title></head>
 <body style="margin:0;padding:0;background:#0a0a0a;font-family:-apple-system,sans-serif;">
 <table width="100%" style="background:#0a0a0a;padding:40px 20px;"><tr><td align="center">
 <table width="100%" style="max-width:560px;background:#141414;border:1px solid #222;border-radius:16px;overflow:hidden;">
@@ -41,7 +50,7 @@ function template(title: string, name: string, body: string, order: Order): stri
     <h1 style="margin:0;font-size:22px;font-weight:800;color:#00ff88;">SKIBIDI SHOP</h1>
   </td></tr>
   <tr><td style="padding:32px;color:#ccc;font-size:15px;line-height:24px;">
-    <p style="margin:0 0 16px;font-weight:600;font-size:16px;color:#fff;">Hey ${name},</p>
+    <p style="margin:0 0 16px;font-weight:600;font-size:16px;color:#fff;">Hey ${escapeHTML(name)},</p>
     ${body}
     <div style="background:#1a1a1a;border:1px solid #222;border-radius:12px;padding:20px;margin:24px 0;">
       <table style="width:100%;border-collapse:collapse;">
@@ -50,13 +59,13 @@ function template(title: string, name: string, body: string, order: Order): stri
           <td align="right" style="font-size:11px;color:#666;font-weight:700;text-transform:uppercase;letter-spacing:1px;">Status</td>
         </tr>
         <tr>
-          <td style="padding-top:6px;font-size:18px;color:#fff;font-weight:700;">#${order.id}</td>
+          <td style="padding-top:6px;font-size:18px;color:#fff;font-weight:700;">#${escapeHTML(order.id)}</td>
           <td align="right" style="padding-top:6px;">
-            <span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:99px;text-transform:uppercase;background:${statusColor}22;color:${statusColor};border:1px solid ${statusColor}33;">${order.status}</span>
+            <span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:99px;text-transform:uppercase;background:${statusColor}22;color:${statusColor};border:1px solid ${statusColor}33;">${escapeHTML(order.status)}</span>
           </td>
         </tr>
         <tr><td colspan="2" style="border-top:1px solid #222;padding-top:14px;margin-top:14px;font-size:13px;color:#888;">Product</td></tr>
-        <tr><td colspan="2" style="font-size:16px;color:#fff;font-weight:600;padding-top:4px;">${order.product_name}</td></tr>
+        <tr><td colspan="2" style="font-size:16px;color:#fff;font-weight:600;padding-top:4px;">${escapeHTML(order.product_name)}</td></tr>
       </table>
     </div>
     ${progressHTML(order.status)}
@@ -94,7 +103,7 @@ export async function sendOrderStatusUpdateEmail(toEmail: string, order: Order):
 
   const msg = order.status === 'delivered'
     ? '<p>Your order has been delivered! Hope you love it.</p>'
-    : `<p>Your order status has been updated to <strong>${order.status}</strong>. It's on the way!</p>`;
+    : `<p>Your order status has been updated to <strong>${escapeHTML(order.status)}</strong>. It's on the way!</p>`;
 
   const emoji = order.status === 'delivered' ? '🎉' : '🚚';
 
