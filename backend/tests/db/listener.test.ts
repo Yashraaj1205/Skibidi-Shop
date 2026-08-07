@@ -1,5 +1,6 @@
 import { EventEmitter } from 'events';
 import type { OrderEvent } from '../../src/types';
+import { makeOrder } from '../helpers/fixtures';
 
 class FakeClient extends EventEmitter {
   static instances: FakeClient[] = [];
@@ -30,14 +31,7 @@ function event(overrides: Partial<OrderEvent> = {}): OrderEvent {
   return {
     operation: 'INSERT',
     timestamp: '2024-01-01T00:00:00Z',
-    data: {
-      id: 1,
-      customer_name: 'Ada',
-      customer_email: 'ada@example.com',
-      product_name: 'PS5',
-      status: 'pending',
-      updated_at: '2024-01-01T00:00:00Z',
-    },
+    data: makeOrder({ id: 1, order_number: 'SKB-000001', product_name: 'PS5' }),
     ...overrides,
   };
 }

@@ -65,6 +65,12 @@ DB_NAME=apt_orders
 DB_USER=apt_user
 DB_PASSWORD=apt_pass
 
+# Access control — comma-separated admin accounts (required for the admin dashboard)
+ADMIN_EMAILS=owner@example.com
+
+# Comma-separated browser origins allowed to call the API (empty = allow all, dev only)
+CORS_ORIGINS=http://localhost:3000
+
 # SMTP Email
 SMTP_USER=your_email@gmail.com
 SMTP_PASS=your_app_password
@@ -101,6 +107,24 @@ npm run test:coverage # run with a coverage report
 ### 6. Access
 - **Storefront**: `http://localhost:3000`
 - **Admin Dashboard**: `http://localhost:3000/admin.html`
+- **Health check**: `http://localhost:3000/healthz`
+
+### 7. Access Control
+- Roles live in Postgres (`roles`, `user_roles`); Firebase only proves who the caller is. `ADMIN_EMAILS` grants the `admin` role on sign-in.
+- `/api/admin/*` (and the legacy `/api/orders` alias) require the `admin` role; the dashboard UI only mirrors the server's verdict from `/api/auth/me`.
+- `/api/seller/*` requires a seller account with status `active` — pending and suspended sellers are rejected server-side.
+- `/api/cart/*` and `/api/store/*` require a signed-in customer and only ever touch that customer's own cart and orders.
+- The WebSocket stream requires a token (`ws://host/?token=<idToken>`) and pushes an order only to its owner, plus admins.
+
+### 8. API surface
+| Area | Endpoints |
+| --- | --- |
+| Public catalog | `GET /api/products` (search, category, seller, price and stock filters, `sort`, cursor pagination), `GET /api/categories`, `GET /api/products/:slug`, `GET /api/sellers/:slug` |
+| Customer | `GET/DELETE /api/cart`, `POST /api/cart/items`, `PATCH/DELETE /api/cart/items/:id`, `POST /api/store/checkout`, `POST /api/store/orders`, `GET /api/store/my-orders`, `GET /api/store/orders/:id` |
+| Seller | `POST /api/seller/apply`, `GET /api/seller/me`, `GET/POST /api/seller/products`, `PATCH/DELETE /api/seller/products/:id`, `GET /api/seller/orders`, `GET /api/seller/metrics`, `GET /api/seller/payouts` |
+| Admin | `GET/POST /api/admin/orders`, `GET/PATCH/DELETE /api/admin/orders/:id`, `GET /api/admin/sellers`, `PATCH /api/admin/sellers/:id`, `GET /api/admin/metrics`, `GET /api/admin/payouts`, `POST /api/admin/payouts/run`, `PATCH /api/admin/payouts/:id` |
+
+Money is stored and returned in integer cents (`price_cents`, `total_cents`, …). Checkout is a single transaction that locks each product `FOR UPDATE`, validates stock and seller status, snapshots the line items, splits the commission per seller and decrements stock — so a sold-out race fails instead of overselling. Schema changes are versioned migrations recorded in `schema_migrations` and applied at boot.
 
 ---
 *Designed and Developed for high-performance retail environments.*

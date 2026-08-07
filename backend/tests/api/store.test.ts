@@ -1,125 +1,180 @@
-import express, { NextFunction, Response } from 'express';
 import request from 'supertest';
+import { appWith, authState } from '../helpers/authState';
+import { makeIdentity, makeOrder } from '../helpers/fixtures';
 import { queryResult } from '../helpers/mockPool';
-import type { AuthenticatedRequest } from '../../src/middleware/auth';
 
 const query = jest.fn();
 jest.mock('../../src/db/pool', () => ({ pool: { query } }));
+jest.mock('../../src/middleware/auth', () => jest.requireActual('../helpers/authState').mockAuthModule());
 
-let injectedUser: AuthenticatedRequest['user'];
-jest.mock('../../src/middleware/auth', () => ({
-  authenticateToken: (req: AuthenticatedRequest, _res: Response, next: NextFunction) => {
-    req.user = injectedUser;
-    next();
-  },
-}));
+const placeOrder = jest.fn();
+jest.mock('../../src/services/checkout', () => ({ placeOrder }));
 
 import storeRouter from '../../src/api/store';
 
-const app = express();
-app.use(express.json());
-app.use('/api/store', storeRouter);
+const app = appWith('/api/store', storeRouter);
+
+const ADDRESS = {
+  full_name: 'Ada Lovelace',
+  line1: '1 Analytical Way',
+  city: 'London',
+  postal_code: 'E1 6AN',
+  country: 'GB'
+};
+
+const callFor = (fragment: string) =>
+  query.mock.calls.find((call) => String(call[0]).includes(fragment));
 
 beforeEach(() => {
-  injectedUser = {
-    firebase_uid: 'uid-1',
-    email: 'ada@example.com',
-    display_name: 'Ada',
-  };
-  jest.spyOn(console, 'error').mockImplementation(() => undefined);
+  query.mockReset();
+  placeOrder.mockReset();
+  authState.identity = makeIdentity();
+  query.mockResolvedValue(queryResult([]));
+  placeOrder.mockResolvedValue({ order: makeOrder(), items: [] });
+});
+
+describe('/api/store', () => {
+  it('requires authentication on every route', async () => {
+    authState.identity = null;
+
+    const responses = await Promise.all([
+      request(app).post('/api/store/checkout').send({ address: ADDRESS }),
+      request(app).post('/api/store/orders').send({ product_id: 5 }),
+      request(app).get('/api/store/my-orders'),
+      request(app).get('/api/store/orders/42')
+    ]);
+
+    expect(responses.map((res) => res.status)).toEqual([401, 401, 401, 401]);
+  });
+});
+
+describe('POST /api/store/checkout', () => {
+  it('places the caller cart as one order and clears the cart', async () => {
+    query.mockResolvedValue(queryResult([{ product_id: 5, quantity: 2 }]));
+
+    const res = await request(app).post('/api/store/checkout').send({ address: ADDRESS });
+
+    expect(res.status).toBe(201);
+    expect(callFor('FROM cart_items ci')![1]).toEqual([7]);
+    expect(placeOrder).toHaveBeenCalledWith(authState.identity, {
+      items: [{ product_id: 5, quantity: 2 }],
+      address: expect.objectContaining({ line1: '1 Analytical Way', region: '' }),
+      clear_cart: true
+    });
+    expect(res.body.order.order_number).toBe('SKB-000042');
+  });
+
+  it('400s when the cart is empty', async () => {
+    const res = await request(app).post('/api/store/checkout').send({ address: ADDRESS });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'Cart is empty' });
+    expect(placeOrder).not.toHaveBeenCalled();
+  });
+
+  it('rejects an incomplete address', async () => {
+    const res = await request(app)
+      .post('/api/store/checkout')
+      .send({ address: { ...ADDRESS, line1: '' } });
+
+    expect(res.status).toBe(400);
+    expect(res.body.details).toHaveProperty(['address.line1']);
+  });
+
+  it('surfaces checkout failures such as sold-out stock', async () => {
+    query.mockResolvedValue(queryResult([{ product_id: 5, quantity: 2 }]));
+    const { HttpError } = jest.requireActual('../../src/middleware/error');
+    placeOrder.mockRejectedValue(new HttpError(409, 'Only 1 left of PS5'));
+
+    const res = await request(app).post('/api/store/checkout').send({ address: ADDRESS });
+
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({ error: 'Only 1 left of PS5' });
+  });
 });
 
 describe('POST /api/store/orders', () => {
-  it('creates an order from the caller profile and the product catalog', async () => {
-    query
-      .mockResolvedValueOnce(queryResult([{ id: 5, display_name: 'Ada', email: 'ada@example.com' }]))
-      .mockResolvedValueOnce(queryResult([{ name: 'PS5', price: '499.99' }]))
-      .mockResolvedValueOnce(queryResult([{ id: 42, status: 'pending' }]));
-
-    const res = await request(app).post('/api/store/orders').send({ product_id: 3 });
+  it('buys a single product without a cart', async () => {
+    const res = await request(app).post('/api/store/orders').send({ product_id: 5, quantity: 3 });
 
     expect(res.status).toBe(201);
-    expect(res.body).toEqual({ id: 42, status: 'pending' });
-    expect(query.mock.calls[0][1]).toEqual(['uid-1']);
-    expect(query.mock.calls[1][1]).toEqual([3]);
-    expect(query.mock.calls[2][1]).toEqual(['Ada', 'ada@example.com', 5, 'PS5']);
+    expect(placeOrder).toHaveBeenCalledWith(authState.identity, {
+      items: [{ product_id: 5, quantity: 3 }]
+    });
+    expect(res.body).toEqual(makeOrder());
   });
 
-  it('returns 401 when the request has no user', async () => {
-    injectedUser = undefined;
+  it('defaults the quantity to one', async () => {
+    await request(app).post('/api/store/orders').send({ product_id: 5 });
 
-    const res = await request(app).post('/api/store/orders').send({ product_id: 3 });
-
-    expect(res.status).toBe(401);
-    expect(query).not.toHaveBeenCalled();
+    expect(placeOrder.mock.calls[0][1].items[0].quantity).toBe(1);
   });
 
-  it('returns 400 when product_id is missing', async () => {
+  it('rejects a missing product id', async () => {
     const res = await request(app).post('/api/store/orders').send({});
 
     expect(res.status).toBe(400);
-    expect(res.body).toEqual({ error: 'product_id is required' });
-    expect(query).not.toHaveBeenCalled();
-  });
-
-  it('returns 400 when the profile has not been synced', async () => {
-    query.mockResolvedValueOnce(queryResult([], 0));
-
-    const res = await request(app).post('/api/store/orders').send({ product_id: 3 });
-
-    expect(res.status).toBe(400);
-    expect(res.body).toEqual({ error: 'Profile not synced' });
-    expect(query).toHaveBeenCalledTimes(1);
-  });
-
-  it('returns 404 when the product is missing or out of stock', async () => {
-    query
-      .mockResolvedValueOnce(queryResult([{ id: 5, display_name: 'Ada', email: 'ada@example.com' }]))
-      .mockResolvedValueOnce(queryResult([], 0));
-
-    const res = await request(app).post('/api/store/orders').send({ product_id: 3 });
-
-    expect(res.status).toBe(404);
-    expect(res.body).toEqual({ error: 'Product not found or out of stock' });
-    expect(query).toHaveBeenCalledTimes(2);
-  });
-
-  it('returns 500 when a query fails', async () => {
-    query.mockRejectedValue(new Error('db down'));
-
-    const res = await request(app).post('/api/store/orders').send({ product_id: 3 });
-
-    expect(res.status).toBe(500);
-    expect(res.body).toEqual({ error: 'Internal server error' });
   });
 });
 
 describe('GET /api/store/my-orders', () => {
-  it('returns the caller orders', async () => {
-    const rows = [{ id: 2 }, { id: 1 }];
-    query.mockResolvedValue(queryResult(rows));
+  it('returns only the caller orders with their line items', async () => {
+    query.mockResolvedValue(queryResult([{ ...makeOrder(), items: [] }]));
 
     const res = await request(app).get('/api/store/my-orders');
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual(rows);
-    expect(query.mock.calls[0][1]).toEqual(['uid-1']);
+    expect(callFor('FROM orders o')![0]).toContain('WHERE o.user_id = $1');
+    expect(callFor('FROM orders o')![1]).toEqual([7]);
+    expect(res.body).toHaveLength(1);
+  });
+});
+
+describe('GET /api/store/orders/:id', () => {
+  it('returns the order with items, history and shipping address', async () => {
+    query.mockImplementation((text: string) => {
+      if (text.includes('FROM orders')) {
+        return Promise.resolve(queryResult([makeOrder({ shipping_address_id: 77 })]));
+      }
+      if (text.includes('FROM order_items')) return Promise.resolve(queryResult([{ id: 200 }]));
+      if (text.includes('FROM order_status_history')) {
+        return Promise.resolve(queryResult([{ status: 'pending' }]));
+      }
+      return Promise.resolve(queryResult([{ id: 77, city: 'London' }]));
+    });
+
+    const res = await request(app).get('/api/store/orders/42');
+
+    expect(res.status).toBe(200);
+    expect(callFor('FROM orders')![1]).toEqual([42, 7]);
+    expect(res.body).toMatchObject({
+      id: 42,
+      items: [{ id: 200 }],
+      history: [{ status: 'pending' }],
+      shipping_address: { id: 77, city: 'London' }
+    });
   });
 
-  it('returns 401 when the request has no user', async () => {
-    injectedUser = undefined;
+  it('reports a null shipping address when the order has none', async () => {
+    query.mockImplementation((text: string) =>
+      Promise.resolve(text.includes('FROM orders') ? queryResult([makeOrder()]) : queryResult([]))
+    );
 
-    const res = await request(app).get('/api/store/my-orders');
+    const res = await request(app).get('/api/store/orders/42');
 
-    expect(res.status).toBe(401);
-    expect(query).not.toHaveBeenCalled();
+    expect(res.body.shipping_address).toBeNull();
   });
 
-  it('returns 500 when the query fails', async () => {
-    query.mockRejectedValue(new Error('db down'));
+  it('404s for an order that belongs to somebody else', async () => {
+    const res = await request(app).get('/api/store/orders/42');
 
-    const res = await request(app).get('/api/store/my-orders');
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: 'Order not found' });
+  });
 
-    expect(res.status).toBe(500);
+  it('rejects a non-numeric order id', async () => {
+    const res = await request(app).get('/api/store/orders/abc');
+
+    expect(res.status).toBe(400);
   });
 });
