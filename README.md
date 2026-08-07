@@ -65,6 +65,12 @@ DB_NAME=apt_orders
 DB_USER=apt_user
 DB_PASSWORD=apt_pass
 
+# Access control — comma-separated admin accounts (required for the admin dashboard)
+ADMIN_EMAILS=owner@example.com
+
+# Comma-separated browser origins allowed to call the API (empty = allow all, dev only)
+CORS_ORIGINS=http://localhost:3000
+
 # SMTP Email
 SMTP_USER=your_email@gmail.com
 SMTP_PASS=your_app_password
@@ -101,6 +107,12 @@ npm run test:coverage # run with a coverage report
 ### 6. Access
 - **Storefront**: `http://localhost:3000`
 - **Admin Dashboard**: `http://localhost:3000/admin.html`
+- **Health check**: `http://localhost:3000/healthz`
+
+### 7. Access Control
+- Every `/api/orders` route requires a valid Firebase ID token belonging to an account listed in `ADMIN_EMAILS`; the dashboard UI only mirrors the server's verdict from `/api/auth/me`.
+- `/api/store/*` requires a signed-in customer and only ever returns that customer's own orders.
+- The WebSocket stream requires a token (`ws://host/?token=<idToken>`) and pushes an order only to its owner, plus admins.
 
 ---
 *Designed and Developed for high-performance retail environments.*

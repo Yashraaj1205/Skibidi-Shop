@@ -1,9 +1,9 @@
-import { Response, NextFunction } from 'express';
+import { NextFunction, Response } from 'express';
 
 const verifyIdToken = jest.fn();
-jest.mock('../../src/config/firebase', () => ({ auth: { verifyIdToken } }));
+jest.mock('../../src/config/firebase', () => ({ getAuth: () => ({ verifyIdToken }) }));
 
-import { authenticateToken, AuthenticatedRequest } from '../../src/middleware/auth';
+import { AuthenticatedRequest, authenticateToken, requireAdmin } from '../../src/middleware/auth';
 
 function makeRes(): Response & { statusCode?: number; body?: unknown } {
   const res = {
@@ -24,6 +24,17 @@ function makeRes(): Response & { statusCode?: number; body?: unknown } {
 function makeReq(authorization?: string): AuthenticatedRequest {
   return { headers: authorization ? { authorization } : {} } as AuthenticatedRequest;
 }
+
+const originalEnv = process.env;
+
+beforeEach(() => {
+  process.env = { ...originalEnv };
+  delete process.env.ADMIN_EMAILS;
+});
+
+afterEach(() => {
+  process.env = originalEnv;
+});
 
 describe('authenticateToken', () => {
   it('rejects requests without an Authorization header', async () => {
@@ -67,9 +78,20 @@ describe('authenticateToken', () => {
       email: 'a@example.com',
       display_name: 'Ada Lovelace',
       photo_url: 'https://cdn/a.png',
+      is_admin: false,
     });
     expect(next).toHaveBeenCalled();
     expect(res.statusCode).toBeUndefined();
+  });
+
+  it('marks allowlisted emails as admins', async () => {
+    process.env.ADMIN_EMAILS = 'owner@example.com';
+    verifyIdToken.mockResolvedValue({ uid: 'uid-1', email: 'Owner@Example.com' });
+    const req = makeReq('Bearer t');
+
+    await authenticateToken(req, makeRes(), jest.fn() as NextFunction);
+
+    expect(req.user?.is_admin).toBe(true);
   });
 
   it('derives display_name from the email local part when name is missing', async () => {
@@ -83,6 +105,7 @@ describe('authenticateToken', () => {
       email: 'grace@example.com',
       display_name: 'grace',
       photo_url: undefined,
+      is_admin: false,
     });
   });
 
@@ -97,6 +120,7 @@ describe('authenticateToken', () => {
       email: '',
       display_name: 'Customer',
       photo_url: undefined,
+      is_admin: false,
     });
   });
 
@@ -109,6 +133,65 @@ describe('authenticateToken', () => {
 
     expect(res.statusCode).toBe(403);
     expect(res.body).toEqual({ error: 'Invalid or expired token' });
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it('responds 403 when Firebase is not initialized', async () => {
+    const firebase = require('../../src/config/firebase');
+    const spy = jest.spyOn(firebase, 'getAuth').mockImplementation(() => {
+      throw new Error('Firebase Admin is not initialized');
+    });
+    const res = makeRes();
+
+    await authenticateToken(makeReq('Bearer t'), res, jest.fn() as NextFunction);
+
+    expect(res.statusCode).toBe(403);
+    spy.mockRestore();
+  });
+});
+
+describe('requireAdmin', () => {
+  const user = {
+    firebase_uid: 'uid-1',
+    email: 'owner@example.com',
+    display_name: 'Owner',
+    is_admin: true,
+  };
+
+  it('passes admins through', () => {
+    const req = { ...makeReq('Bearer t'), user } as AuthenticatedRequest;
+    const next = jest.fn() as NextFunction;
+    const res = makeRes();
+
+    requireAdmin(req, res, next);
+
+    expect(next).toHaveBeenCalled();
+    expect(res.statusCode).toBeUndefined();
+  });
+
+  it('responds 401 when there is no authenticated user', () => {
+    const res = makeRes();
+    const next = jest.fn() as NextFunction;
+
+    requireAdmin(makeReq(), res, next);
+
+    expect(res.statusCode).toBe(401);
+    expect(res.body).toEqual({ error: 'Unauthorized' });
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it('responds 403 for authenticated non-admins', () => {
+    const req = {
+      ...makeReq('Bearer t'),
+      user: { ...user, is_admin: false },
+    } as AuthenticatedRequest;
+    const res = makeRes();
+    const next = jest.fn() as NextFunction;
+
+    requireAdmin(req, res, next);
+
+    expect(res.statusCode).toBe(403);
+    expect(res.body).toEqual({ error: 'Admin privileges required' });
     expect(next).not.toHaveBeenCalled();
   });
 });

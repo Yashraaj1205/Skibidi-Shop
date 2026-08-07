@@ -1,15 +1,22 @@
-import { Router, Response } from 'express';
-import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
+import { Response, Router } from 'express';
 import { pool } from '../db/pool';
+import { asyncHandler } from '../lib/asyncHandler';
+import { HttpError } from '../middleware/error';
+import { AuthenticatedRequest, authenticateToken } from '../middleware/auth';
 
 const router = Router();
 
-router.post('/sync', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
-  if (!req.user) { res.status(401).json({ error: 'Unauthorized' }); return; }
+router.use(authenticateToken);
 
-  const { firebase_uid, email, display_name, photo_url } = req.user;
+function requireUser(req: AuthenticatedRequest) {
+  if (!req.user) throw new HttpError(401, 'Unauthorized');
+  return req.user;
+}
 
-  try {
+router.post(
+  '/sync',
+  asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const { firebase_uid, email, display_name, photo_url, is_admin } = requireUser(req);
     const result = await pool.query(
       `INSERT INTO users (firebase_uid, email, display_name, photo_url)
        VALUES ($1, $2, $3, $4)
@@ -18,24 +25,20 @@ router.post('/sync', authenticateToken, async (req: AuthenticatedRequest, res: R
        RETURNING *`,
       [firebase_uid, email, display_name, photo_url]
     );
-    res.json(result.rows[0]);
-  } catch (err) {
-    console.error('Sync failed:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+    res.json({ ...result.rows[0], is_admin });
+  })
+);
 
-router.get('/me', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
-  if (!req.user) { res.status(401).json({ error: 'Unauthorized' }); return; }
-
-  try {
-    const result = await pool.query('SELECT * FROM users WHERE firebase_uid = $1', [req.user.firebase_uid]);
-    if (result.rowCount === 0) { res.status(404).json({ error: 'Not found' }); return; }
-    res.json(result.rows[0]);
-  } catch (err) {
-    console.error('Profile fetch failed:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+router.get(
+  '/me',
+  asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const user = requireUser(req);
+    const result = await pool.query('SELECT * FROM users WHERE firebase_uid = $1', [
+      user.firebase_uid
+    ]);
+    if (result.rowCount === 0) throw new HttpError(404, 'Not found');
+    res.json({ ...result.rows[0], is_admin: user.is_admin });
+  })
+);
 
 export default router;

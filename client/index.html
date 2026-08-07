@@ -550,6 +550,10 @@
   let products = [];
   let orders = [];
 
+  const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+
   async function initStore() {
     const res = await fetch('/api/config');
     const config = await res.json();
@@ -568,8 +572,10 @@
         await syncProfile();
         await loadProducts();
         await loadOrders();
+        connectWS();
       } else {
         token = null;
+        closeWS();
         document.getElementById('user-pill').style.display = 'none';
         document.getElementById('auth-gate').style.display = 'flex';
         document.getElementById('store').classList.remove('active');
@@ -609,12 +615,12 @@
       el.className = 'card';
       el.innerHTML = `
         <div class="card-img-wrap">
-          <span class="card-cat">${p.category}</span>
-          <img class="card-img" src="${p.image_url}" alt="${p.name}" loading="lazy">
+          <span class="card-cat">${esc(p.category)}</span>
+          <img class="card-img" src="${esc(p.image_url)}" alt="${esc(p.name)}" loading="lazy">
         </div>
         <div class="card-body">
-          <div class="card-name">${p.name}</div>
-          <div class="card-desc">${p.description}</div>
+          <div class="card-name">${esc(p.name)}</div>
+          <div class="card-desc">${esc(p.description)}</div>
           <div class="card-footer">
             <span class="card-price">$${Number(p.price).toFixed(2)}</span>
             <button class="btn-buy" id="buy-${p.id}" onclick="buy(${p.id}, this)">Buy Now</button>
@@ -636,7 +642,7 @@
       });
       if (!res.ok) throw new Error((await res.json()).error);
       const order = await res.json();
-      toast('Order Placed!', `${order.product_name} — check your email for confirmation.`);
+      toast('Order Placed!', `${order.product_name} \u2014 check your email for confirmation.`);
     } catch (e) {
       toast('Failed', e.message || 'Could not place order');
     }
@@ -673,10 +679,10 @@
     const aDel = (s) => (s === 'delivered');
     div.innerHTML = `
       <div class="tracker-head">
-        <span class="tracker-id">#${o.id}</span>
-        <span class="badge badge-${o.status}">${o.status}</span>
+        <span class="tracker-id">#${esc(o.id)}</span>
+        <span class="badge badge-${esc(o.status)}">${esc(o.status)}</span>
       </div>
-      <div class="tracker-product">${o.product_name}</div>
+      <div class="tracker-product">${esc(o.product_name)}</div>
       <div class="progress-track"><div class="progress-fill" style="width:${progressWidth(o.status)}"></div></div>
       <div class="progress-labels">
         <span class="${a(o.status) ? 'active' : ''}">Ordered</span>
@@ -687,21 +693,30 @@
     return div;
   }
 
-  // WebSocket
+  // WebSocket — the server only streams orders belonging to the authenticated user.
   const wsDot = document.getElementById('ws-dot');
   const wsText = document.getElementById('ws-text');
-  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const ws = new WebSocket(proto + '//' + location.host);
+  let ws = null;
 
-  ws.onopen = () => { wsDot.classList.add('on'); wsText.textContent = 'Live'; };
-  ws.onclose = () => { wsDot.classList.remove('on'); wsText.textContent = 'Offline'; };
+  function closeWS() {
+    if (ws) { ws.onclose = null; ws.close(); ws = null; }
+    wsDot.classList.remove('on');
+    wsText.textContent = 'Offline';
+  }
 
-  ws.onmessage = (e) => {
+  function connectWS() {
+    if (!token || ws) return;
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    ws = new WebSocket(`${proto}//${location.host}/?token=${encodeURIComponent(token)}`);
+
+    ws.onopen = () => { wsDot.classList.add('on'); wsText.textContent = 'Live'; };
+    ws.onclose = () => { ws = null; wsDot.classList.remove('on'); wsText.textContent = 'Offline'; };
+    ws.onmessage = onWSMessage;
+  }
+
+  function onWSMessage(e) {
     const msg = JSON.parse(e.data);
     if (msg.type !== 'order_change') return;
-
-    const user = auth.currentUser;
-    if (!user || msg.data.customer_email !== user.email) return;
 
     if (msg.operation === 'INSERT') {
       orders.unshift(msg.data);
@@ -721,13 +736,13 @@
       orders = orders.filter(o => o.id !== msg.data.id);
       renderOrders();
     }
-  };
+  }
 
   function toast(title, msg) {
     const wrap = document.getElementById('toasts');
     const el = document.createElement('div');
     el.className = 'toast';
-    el.innerHTML = `<div class="toast-title">${title}</div><div class="toast-msg">${msg}</div>`;
+    el.innerHTML = `<div class="toast-title">${esc(title)}</div><div class="toast-msg">${esc(msg)}</div>`;
     wrap.appendChild(el);
     setTimeout(() => {
       el.style.opacity = '0';

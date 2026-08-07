@@ -162,30 +162,49 @@
 
 <script>
   let auth;
-  const ADMIN_EMAIL = 'skibidi.businessguru@gmail.com';
+  let token = null;
+
+  const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+
+  const authHeaders = (extra) => Object.assign({ 'Authorization': 'Bearer ' + token }, extra || {});
 
   async function initAdmin() {
     const res = await fetch('/api/config');
     const config = await res.json();
     firebase.initializeApp(config);
-    
+
     auth = firebase.auth();
 
-    auth.onAuthStateChanged((user) => {
-      if (user) {
-        if (user.email === ADMIN_EMAIL) {
-          document.getElementById('admin-gate').style.display = 'none';
-          document.getElementById('admin-content').style.display = 'grid';
-          load();
-        } else {
-          document.getElementById('auth-error').textContent = 'Access Denied: You are not the Skibidi Shop admin.';
-          document.getElementById('auth-error').style.display = 'block';
-          auth.signOut();
-        }
-      } else {
+    auth.onAuthStateChanged(async (user) => {
+      if (!user) {
+        token = null;
+        closeWS();
         document.getElementById('admin-gate').style.display = 'flex';
         document.getElementById('admin-content').style.display = 'none';
+        return;
       }
+
+      token = await user.getIdToken();
+
+      // The server is the authority on admin access; the UI only reflects its answer.
+      const profile = await fetch('/api/auth/me', { headers: authHeaders() });
+      const isAdmin = profile.ok && (await profile.json()).is_admin === true;
+
+      if (!isAdmin) {
+        const err = document.getElementById('auth-error');
+        err.textContent = 'Access denied: this account is not a Skibidi Shop admin.';
+        err.style.display = 'block';
+        token = null;
+        auth.signOut();
+        return;
+      }
+
+      document.getElementById('admin-gate').style.display = 'none';
+      document.getElementById('admin-content').style.display = 'grid';
+      load();
+      connectWS();
     });
   }
 
@@ -200,7 +219,8 @@
 
   async function load() {
     try {
-      const res = await fetch('/api/orders');
+      const res = await fetch('/api/orders', { headers: authHeaders() });
+      if (!res.ok) throw new Error('unauthorized');
       orders = await res.json();
       render();
     } catch { list.innerHTML = '<div class="empty">Failed to load</div>'; }
@@ -215,11 +235,11 @@
       el.id = 'order-' + o.id;
       el.innerHTML = `
         <div class="order-info">
-          <span class="order-id">#${o.id} ${o.customer_email ? '· ' + o.customer_email : ''}</span>
-          <span class="customer-name">${o.customer_name}</span>
-          <span class="product-name">${o.product_name}</span>
+          <span class="order-id">#${esc(o.id)} ${o.customer_email ? '· ' + esc(o.customer_email) : ''}</span>
+          <span class="customer-name">${esc(o.customer_name)}</span>
+          <span class="product-name">${esc(o.product_name)}</span>
         </div>
-        <span class="badge badge-${o.status}">${o.status}</span>
+        <span class="badge badge-${esc(o.status)}">${esc(o.status)}</span>
       `;
       list.appendChild(el);
     });
@@ -232,7 +252,7 @@
     if (!name || !product) return;
     await fetch('/api/orders', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ customer_name: name, customer_email: email, product_name: product })
     });
     document.getElementById('inp-name').value = '';
@@ -246,7 +266,7 @@
     if (!id) return;
     await fetch('/api/orders/' + id, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ status })
     });
     document.getElementById('inp-id').value = '';
@@ -255,19 +275,30 @@
   async function deleteOrder() {
     const id = document.getElementById('inp-id').value;
     if (!id) return;
-    await fetch('/api/orders/' + id, { method: 'DELETE' });
+    await fetch('/api/orders/' + id, { method: 'DELETE', headers: authHeaders() });
     document.getElementById('inp-id').value = '';
   }
 
   const dot = document.getElementById('ws-dot');
   const txt = document.getElementById('ws-text');
-  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const ws = new WebSocket(proto + '//' + location.host);
+  let ws = null;
 
-  ws.onopen = () => { dot.classList.add('on'); txt.textContent = 'Live'; };
-  ws.onclose = () => { dot.classList.remove('on'); txt.textContent = 'Offline'; };
+  function closeWS() {
+    if (ws) { ws.onclose = null; ws.close(); ws = null; }
+    dot.classList.remove('on');
+    txt.textContent = 'Offline';
+  }
 
-  ws.onmessage = (e) => {
+  function connectWS() {
+    if (!token || ws) return;
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    ws = new WebSocket(`${proto}//${location.host}/?token=${encodeURIComponent(token)}`);
+    ws.onopen = () => { dot.classList.add('on'); txt.textContent = 'Live'; };
+    ws.onclose = () => { ws = null; dot.classList.remove('on'); txt.textContent = 'Offline'; };
+    ws.onmessage = onWSMessage;
+  }
+
+  function onWSMessage(e) {
     const msg = JSON.parse(e.data);
     if (msg.type !== 'order_change') return;
 
@@ -283,9 +314,7 @@
       orders = orders.filter(o => o.id !== msg.data.id);
       render();
     }
-  };
-
-  load();
+  }
 </script>
 </body>
 </html>

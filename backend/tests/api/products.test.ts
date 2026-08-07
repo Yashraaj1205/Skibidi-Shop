@@ -6,9 +6,11 @@ const query = jest.fn();
 jest.mock('../../src/db/pool', () => ({ pool: { query } }));
 
 import productsRouter from '../../src/api/products';
+import { errorHandler } from '../../src/middleware/error';
 
 const app = express();
 app.use('/api/products', productsRouter);
+app.use(errorHandler);
 
 describe('GET /api/products', () => {
   it('returns only in-stock products ordered by id', async () => {

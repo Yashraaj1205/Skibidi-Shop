@@ -1,65 +1,75 @@
-import { Router, Response } from 'express';
-import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
+import { Response, Router } from 'express';
+import { z } from 'zod';
 import { pool } from '../db/pool';
+import { asyncHandler } from '../lib/asyncHandler';
+import { HttpError } from '../middleware/error';
+import { AuthenticatedRequest, authenticateToken } from '../middleware/auth';
+import { validateBody } from '../middleware/validate';
 
 const router = Router();
 
-router.post('/orders', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
-  if (!req.user) { res.status(401).json({ error: 'Unauthorized' }); return; }
+router.use(authenticateToken);
 
-  const { product_id } = req.body;
-  if (!product_id) { res.status(400).json({ error: 'product_id is required' }); return; }
-
-  try {
-    const userResult = await pool.query(
-      'SELECT id, display_name, email FROM users WHERE firebase_uid = $1',
-      [req.user.firebase_uid]
-    );
-    if (userResult.rowCount === 0) {
-      res.status(400).json({ error: 'Profile not synced' });
-      return;
-    }
-
-    const user = userResult.rows[0];
-
-    const productResult = await pool.query(
-      'SELECT name, price FROM products WHERE id = $1 AND in_stock = TRUE',
-      [product_id]
-    );
-    if (productResult.rowCount === 0) {
-      res.status(404).json({ error: 'Product not found or out of stock' });
-      return;
-    }
-
-    const product = productResult.rows[0];
-
-    const orderResult = await pool.query(
-      `INSERT INTO orders (customer_name, customer_email, user_id, product_name, status, updated_at)
-       VALUES ($1, $2, $3, $4, 'pending', NOW()) RETURNING *`,
-      [user.display_name, user.email, user.id, product.name]
-    );
-
-    res.status(201).json(orderResult.rows[0]);
-  } catch (err) {
-    console.error('Order placement failed:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
+const placeOrder = z.object({
+  product_id: z.coerce.number().int().positive()
 });
 
-router.get('/my-orders', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
-  if (!req.user) { res.status(401).json({ error: 'Unauthorized' }); return; }
+function requireUser(req: AuthenticatedRequest) {
+  if (!req.user) throw new HttpError(401, 'Unauthorized');
+  return req.user;
+}
 
-  try {
+router.post(
+  '/orders',
+  validateBody(placeOrder),
+  asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const user = requireUser(req);
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      const userResult = await client.query(
+        'SELECT id, display_name, email FROM users WHERE firebase_uid = $1',
+        [user.firebase_uid]
+      );
+      if (userResult.rowCount === 0) throw new HttpError(400, 'Profile not synced');
+
+      const productResult = await client.query(
+        'SELECT name, price FROM products WHERE id = $1 AND in_stock = TRUE FOR UPDATE',
+        [req.body.product_id]
+      );
+      if (productResult.rowCount === 0) throw new HttpError(404, 'Product not found or out of stock');
+
+      const buyer = userResult.rows[0];
+      const orderResult = await client.query(
+        `INSERT INTO orders (customer_name, customer_email, user_id, product_name, status, updated_at)
+         VALUES ($1, $2, $3, $4, 'pending', NOW()) RETURNING *`,
+        [buyer.display_name, buyer.email, buyer.id, productResult.rows[0].name]
+      );
+
+      await client.query('COMMIT');
+      res.status(201).json(orderResult.rows[0]);
+    } catch (err) {
+      await client.query('ROLLBACK').catch(() => undefined);
+      throw err;
+    } finally {
+      client.release();
+    }
+  })
+);
+
+router.get(
+  '/my-orders',
+  asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+    const user = requireUser(req);
     const result = await pool.query(
       `SELECT o.* FROM orders o JOIN users u ON o.user_id = u.id
        WHERE u.firebase_uid = $1 ORDER BY o.id DESC`,
-      [req.user.firebase_uid]
+      [user.firebase_uid]
     );
     res.json(result.rows);
-  } catch (err) {
-    console.error('Orders fetch failed:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+  })
+);
 
 export default router;
