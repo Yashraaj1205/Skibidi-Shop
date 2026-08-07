@@ -221,7 +221,7 @@
     try {
       const res = await fetch('/api/orders', { headers: authHeaders() });
       if (!res.ok) throw new Error('unauthorized');
-      orders = await res.json();
+      orders = (await res.json()).items;
       render();
     } catch { list.innerHTML = '<div class="empty">Failed to load</div>'; }
   }
@@ -235,7 +235,7 @@
       el.id = 'order-' + o.id;
       el.innerHTML = `
         <div class="order-info">
-          <span class="order-id">#${esc(o.id)} ${o.customer_email ? '· ' + esc(o.customer_email) : ''}</span>
+          <span class="order-id">${esc(o.order_number || '#' + o.id)} ${o.customer_email ? '· ' + esc(o.customer_email) : ''}</span>
           <span class="customer-name">${esc(o.customer_name)}</span>
           <span class="product-name">${esc(o.product_name)}</span>
         </div>

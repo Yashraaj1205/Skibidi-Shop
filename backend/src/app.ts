@@ -3,9 +3,11 @@ import express, { Express, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import path from 'path';
+import adminRoutes, { ordersRouter } from './api/admin';
 import authRoutes from './api/auth';
-import orderRoutes from './api/orders';
-import productRoutes from './api/products';
+import cartRoutes from './api/cart';
+import catalogRoutes from './api/catalog';
+import sellerRoutes from './api/seller';
 import storeRoutes from './api/store';
 import { isFirebaseReady } from './config/firebase';
 import { errorHandler } from './middleware/error';
@@ -63,10 +65,13 @@ export function createApp(): Express {
     res.json(firebaseWebConfig());
   });
 
+  app.use('/api', catalogRoutes);
   app.use('/api/auth', authRoutes);
-  app.use('/api/products', productRoutes);
+  app.use('/api/cart', cartRoutes);
   app.use('/api/store', storeRoutes);
-  app.use('/api/orders', orderRoutes);
+  app.use('/api/seller', sellerRoutes);
+  app.use('/api/admin', adminRoutes);
+  app.use('/api/orders', ordersRouter);
 
   app.use('/api', (_req: Request, res: Response) => {
     res.status(404).json({ error: 'Not found' });

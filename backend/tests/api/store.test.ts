@@ -1,184 +1,180 @@
-import express, { NextFunction, Response } from 'express';
 import request from 'supertest';
+import { appWith, authState } from '../helpers/authState';
+import { makeIdentity, makeOrder } from '../helpers/fixtures';
 import { queryResult } from '../helpers/mockPool';
-import type { AuthenticatedRequest, AuthenticatedUser } from '../../src/middleware/auth';
 
 const query = jest.fn();
-const clientQuery = jest.fn();
-const release = jest.fn();
-const connect = jest.fn(async () => ({ query: clientQuery, release }));
-jest.mock('../../src/db/pool', () => ({ pool: { query, connect } }));
-jest.mock('../../src/config/firebase', () => ({ getAuth: () => ({ verifyIdToken: jest.fn() }) }));
+jest.mock('../../src/db/pool', () => ({ pool: { query } }));
+jest.mock('../../src/middleware/auth', () => jest.requireActual('../helpers/authState').mockAuthModule());
 
-let injectedUser: AuthenticatedUser | undefined;
-jest.mock('../../src/middleware/auth', () => ({
-  ...jest.requireActual('../../src/middleware/auth'),
-  authenticateToken: (req: AuthenticatedRequest, _res: Response, next: NextFunction) => {
-    req.user = injectedUser;
-    next();
-  },
-}));
+const placeOrder = jest.fn();
+jest.mock('../../src/services/checkout', () => ({ placeOrder }));
 
 import storeRouter from '../../src/api/store';
-import { errorHandler } from '../../src/middleware/error';
 
-const app = express();
-app.use(express.json());
-app.use('/api/store', storeRouter);
-app.use(errorHandler);
+const app = appWith('/api/store', storeRouter);
 
-const shopper: AuthenticatedUser = {
-  firebase_uid: 'uid-1',
-  email: 'ada@example.com',
-  display_name: 'Ada',
-  is_admin: false,
+const ADDRESS = {
+  full_name: 'Ada Lovelace',
+  line1: '1 Analytical Way',
+  city: 'London',
+  postal_code: 'E1 6AN',
+  country: 'GB'
 };
 
-const userRow = { id: 5, display_name: 'Ada', email: 'ada@example.com' };
-const productRow = { name: 'PS5', price: '499.99' };
-
-function stubHappyCheckout() {
-  clientQuery.mockImplementation(async (sql: string) => {
-    if (sql.startsWith('SELECT id, display_name')) return queryResult([userRow]);
-    if (sql.startsWith('SELECT name, price')) return queryResult([productRow]);
-    if (sql.startsWith('INSERT INTO orders')) return queryResult([{ id: 11, product_name: 'PS5' }]);
-    return queryResult([]);
-  });
-}
+const callFor = (fragment: string) =>
+  query.mock.calls.find((call) => String(call[0]).includes(fragment));
 
 beforeEach(() => {
-  injectedUser = shopper;
-  jest.spyOn(console, 'error').mockImplementation(() => undefined);
+  query.mockReset();
+  placeOrder.mockReset();
+  authState.identity = makeIdentity();
+  query.mockResolvedValue(queryResult([]));
+  placeOrder.mockResolvedValue({ order: makeOrder(), items: [] });
+});
+
+describe('/api/store', () => {
+  it('requires authentication on every route', async () => {
+    authState.identity = null;
+
+    const responses = await Promise.all([
+      request(app).post('/api/store/checkout').send({ address: ADDRESS }),
+      request(app).post('/api/store/orders').send({ product_id: 5 }),
+      request(app).get('/api/store/my-orders'),
+      request(app).get('/api/store/orders/42')
+    ]);
+
+    expect(responses.map((res) => res.status)).toEqual([401, 401, 401, 401]);
+  });
+});
+
+describe('POST /api/store/checkout', () => {
+  it('places the caller cart as one order and clears the cart', async () => {
+    query.mockResolvedValue(queryResult([{ product_id: 5, quantity: 2 }]));
+
+    const res = await request(app).post('/api/store/checkout').send({ address: ADDRESS });
+
+    expect(res.status).toBe(201);
+    expect(callFor('FROM cart_items ci')![1]).toEqual([7]);
+    expect(placeOrder).toHaveBeenCalledWith(authState.identity, {
+      items: [{ product_id: 5, quantity: 2 }],
+      address: expect.objectContaining({ line1: '1 Analytical Way', region: '' }),
+      clear_cart: true
+    });
+    expect(res.body.order.order_number).toBe('SKB-000042');
+  });
+
+  it('400s when the cart is empty', async () => {
+    const res = await request(app).post('/api/store/checkout').send({ address: ADDRESS });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'Cart is empty' });
+    expect(placeOrder).not.toHaveBeenCalled();
+  });
+
+  it('rejects an incomplete address', async () => {
+    const res = await request(app)
+      .post('/api/store/checkout')
+      .send({ address: { ...ADDRESS, line1: '' } });
+
+    expect(res.status).toBe(400);
+    expect(res.body.details).toHaveProperty(['address.line1']);
+  });
+
+  it('surfaces checkout failures such as sold-out stock', async () => {
+    query.mockResolvedValue(queryResult([{ product_id: 5, quantity: 2 }]));
+    const { HttpError } = jest.requireActual('../../src/middleware/error');
+    placeOrder.mockRejectedValue(new HttpError(409, 'Only 1 left of PS5'));
+
+    const res = await request(app).post('/api/store/checkout').send({ address: ADDRESS });
+
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({ error: 'Only 1 left of PS5' });
+  });
 });
 
 describe('POST /api/store/orders', () => {
-  it('requires authentication', async () => {
-    injectedUser = undefined;
+  it('buys a single product without a cart', async () => {
+    const res = await request(app).post('/api/store/orders').send({ product_id: 5, quantity: 3 });
 
-    const res = await request(app).post('/api/store/orders').send({ product_id: 1 });
-
-    expect(res.status).toBe(401);
-    expect(connect).not.toHaveBeenCalled();
+    expect(res.status).toBe(201);
+    expect(placeOrder).toHaveBeenCalledWith(authState.identity, {
+      items: [{ product_id: 5, quantity: 3 }]
+    });
+    expect(res.body).toEqual(makeOrder());
   });
 
-  it('rejects a missing product_id', async () => {
+  it('defaults the quantity to one', async () => {
+    await request(app).post('/api/store/orders').send({ product_id: 5 });
+
+    expect(placeOrder.mock.calls[0][1].items[0].quantity).toBe(1);
+  });
+
+  it('rejects a missing product id', async () => {
     const res = await request(app).post('/api/store/orders').send({});
 
     expect(res.status).toBe(400);
-    expect(res.body.details).toHaveProperty('product_id');
-    expect(connect).not.toHaveBeenCalled();
-  });
-
-  it('rejects a non-positive product_id', async () => {
-    const res = await request(app).post('/api/store/orders').send({ product_id: 0 });
-
-    expect(res.status).toBe(400);
-  });
-
-  it('creates the order inside a committed transaction and locks the product row', async () => {
-    stubHappyCheckout();
-
-    const res = await request(app).post('/api/store/orders').send({ product_id: 3 });
-
-    expect(res.status).toBe(201);
-    expect(res.body).toEqual({ id: 11, product_name: 'PS5' });
-
-    const sql = clientQuery.mock.calls.map(([text]) => text);
-    expect(sql[0]).toBe('BEGIN');
-    expect(sql[sql.length - 1]).toBe('COMMIT');
-    expect(sql[2]).toContain('FOR UPDATE');
-    expect(clientQuery).toHaveBeenCalledWith(expect.stringContaining('FOR UPDATE'), [3]);
-    expect(clientQuery).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO orders'), [
-      'Ada',
-      'ada@example.com',
-      5,
-      'PS5',
-    ]);
-    expect(release).toHaveBeenCalled();
-  });
-
-  it('rolls back and returns 400 when the profile was never synced', async () => {
-    clientQuery.mockImplementation(async (sql: string) =>
-      sql.startsWith('SELECT id, display_name') ? queryResult([], 0) : queryResult([])
-    );
-
-    const res = await request(app).post('/api/store/orders').send({ product_id: 3 });
-
-    expect(res.status).toBe(400);
-    expect(res.body).toEqual({ error: 'Profile not synced' });
-    expect(clientQuery).toHaveBeenCalledWith('ROLLBACK');
-    expect(clientQuery).not.toHaveBeenCalledWith('COMMIT');
-    expect(release).toHaveBeenCalled();
-  });
-
-  it('rolls back and returns 404 when the product is missing or out of stock', async () => {
-    clientQuery.mockImplementation(async (sql: string) => {
-      if (sql.startsWith('SELECT id, display_name')) return queryResult([userRow]);
-      if (sql.startsWith('SELECT name, price')) return queryResult([], 0);
-      return queryResult([]);
-    });
-
-    const res = await request(app).post('/api/store/orders').send({ product_id: 3 });
-
-    expect(res.status).toBe(404);
-    expect(res.body).toEqual({ error: 'Product not found or out of stock' });
-    expect(clientQuery).toHaveBeenCalledWith('ROLLBACK');
-  });
-
-  it('rolls back and returns 500 when the insert fails', async () => {
-    clientQuery.mockImplementation(async (sql: string) => {
-      if (sql.startsWith('SELECT id, display_name')) return queryResult([userRow]);
-      if (sql.startsWith('SELECT name, price')) return queryResult([productRow]);
-      if (sql.startsWith('INSERT INTO orders')) throw new Error('constraint');
-      return queryResult([]);
-    });
-
-    const res = await request(app).post('/api/store/orders').send({ product_id: 3 });
-
-    expect(res.status).toBe(500);
-    expect(clientQuery).toHaveBeenCalledWith('ROLLBACK');
-    expect(release).toHaveBeenCalled();
-  });
-
-  it('still releases the client when the rollback itself fails', async () => {
-    clientQuery.mockImplementation(async (sql: string) => {
-      if (sql === 'ROLLBACK') throw new Error('connection lost');
-      if (sql.startsWith('SELECT id, display_name')) throw new Error('db down');
-      return queryResult([]);
-    });
-
-    const res = await request(app).post('/api/store/orders').send({ product_id: 3 });
-
-    expect(res.status).toBe(500);
-    expect(release).toHaveBeenCalled();
   });
 });
 
 describe('GET /api/store/my-orders', () => {
-  it('requires authentication', async () => {
-    injectedUser = undefined;
-
-    const res = await request(app).get('/api/store/my-orders');
-
-    expect(res.status).toBe(401);
-  });
-
-  it('returns only the caller\u2019s orders', async () => {
-    const rows = [{ id: 2 }, { id: 1 }];
-    query.mockResolvedValue(queryResult(rows));
+  it('returns only the caller orders with their line items', async () => {
+    query.mockResolvedValue(queryResult([{ ...makeOrder(), items: [] }]));
 
     const res = await request(app).get('/api/store/my-orders');
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual(rows);
-    expect(query).toHaveBeenCalledWith(expect.stringContaining('u.firebase_uid = $1'), ['uid-1']);
+    expect(callFor('FROM orders o')![0]).toContain('WHERE o.user_id = $1');
+    expect(callFor('FROM orders o')![1]).toEqual([7]);
+    expect(res.body).toHaveLength(1);
+  });
+});
+
+describe('GET /api/store/orders/:id', () => {
+  it('returns the order with items, history and shipping address', async () => {
+    query.mockImplementation((text: string) => {
+      if (text.includes('FROM orders')) {
+        return Promise.resolve(queryResult([makeOrder({ shipping_address_id: 77 })]));
+      }
+      if (text.includes('FROM order_items')) return Promise.resolve(queryResult([{ id: 200 }]));
+      if (text.includes('FROM order_status_history')) {
+        return Promise.resolve(queryResult([{ status: 'pending' }]));
+      }
+      return Promise.resolve(queryResult([{ id: 77, city: 'London' }]));
+    });
+
+    const res = await request(app).get('/api/store/orders/42');
+
+    expect(res.status).toBe(200);
+    expect(callFor('FROM orders')![1]).toEqual([42, 7]);
+    expect(res.body).toMatchObject({
+      id: 42,
+      items: [{ id: 200 }],
+      history: [{ status: 'pending' }],
+      shipping_address: { id: 77, city: 'London' }
+    });
   });
 
-  it('returns 500 when the query fails', async () => {
-    query.mockRejectedValue(new Error('db down'));
+  it('reports a null shipping address when the order has none', async () => {
+    query.mockImplementation((text: string) =>
+      Promise.resolve(text.includes('FROM orders') ? queryResult([makeOrder()]) : queryResult([]))
+    );
 
-    const res = await request(app).get('/api/store/my-orders');
+    const res = await request(app).get('/api/store/orders/42');
 
-    expect(res.status).toBe(500);
+    expect(res.body.shipping_address).toBeNull();
+  });
+
+  it('404s for an order that belongs to somebody else', async () => {
+    const res = await request(app).get('/api/store/orders/42');
+
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ error: 'Order not found' });
+  });
+
+  it('rejects a non-numeric order id', async () => {
+    const res = await request(app).get('/api/store/orders/abc');
+
+    expect(res.status).toBe(400);
   });
 });

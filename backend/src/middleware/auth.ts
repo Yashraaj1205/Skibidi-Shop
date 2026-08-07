@@ -1,17 +1,11 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction, RequestHandler } from 'express';
 import { getAuth } from '../config/firebase';
-import { isAdminEmail } from '../lib/roles';
-
-export interface AuthenticatedUser {
-  firebase_uid: string;
-  email: string;
-  display_name: string;
-  photo_url?: string;
-  is_admin: boolean;
-}
+import { HttpError } from './error';
+import { Identity, resolveIdentity } from '../services/identity';
+import { RoleKey } from '../types';
 
 export interface AuthenticatedRequest extends Request {
-  user?: AuthenticatedUser;
+  user?: Identity;
 }
 
 export async function authenticateToken(
@@ -27,23 +21,44 @@ export async function authenticateToken(
     return;
   }
 
+  let decoded;
   try {
-    const decoded = await getAuth().verifyIdToken(token);
-    const email = decoded.email || '';
-    req.user = {
-      firebase_uid: decoded.uid,
-      email,
-      display_name: decoded.name || email.split('@')[0] || 'Customer',
-      photo_url: decoded.picture || undefined,
-      is_admin: isAdminEmail(email)
-    };
-    next();
+    decoded = await getAuth().verifyIdToken(token);
   } catch {
     res.status(403).json({ error: 'Invalid or expired token' });
+    return;
+  }
+
+  try {
+    req.user = await resolveIdentity(decoded);
+    next();
+  } catch (err) {
+    next(err);
   }
 }
 
-export function requireAdmin(
+export function currentUser(req: AuthenticatedRequest): Identity {
+  if (!req.user) throw new HttpError(401, 'Unauthorized');
+  return req.user;
+}
+
+function requireRole(role: RoleKey): RequestHandler {
+  return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+    if (!req.user.roles.includes(role)) {
+      res.status(403).json({ error: `${role} privileges required` });
+      return;
+    }
+    next();
+  };
+}
+
+export const requireAdmin = requireRole('admin');
+
+export function requireSeller(
   req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
@@ -52,8 +67,12 @@ export function requireAdmin(
     res.status(401).json({ error: 'Unauthorized' });
     return;
   }
-  if (!req.user.is_admin) {
-    res.status(403).json({ error: 'Admin privileges required' });
+  if (req.user.seller_id === null) {
+    res.status(403).json({ error: 'Seller account required' });
+    return;
+  }
+  if (!req.user.is_seller) {
+    res.status(403).json({ error: `Seller account is ${req.user.seller_status}` });
     return;
   }
   next();

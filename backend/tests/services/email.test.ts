@@ -1,4 +1,5 @@
 import type { Order } from '../../src/types';
+import { makeOrder } from '../helpers/fixtures';
 
 const sendMail = jest.fn();
 const createTransport = jest.fn(() => ({ sendMail }));
@@ -22,15 +23,7 @@ function loadEmailModule(env: { SMTP_USER?: string; SMTP_PASS?: string }): Email
 }
 
 function order(overrides: Partial<Order> = {}): Order {
-  return {
-    id: 42,
-    customer_name: 'Ada',
-    customer_email: 'ada@example.com',
-    product_name: 'PlayStation 5',
-    status: 'pending',
-    updated_at: '2024-01-01T00:00:00Z',
-    ...overrides,
-  };
+  return makeOrder(overrides);
 }
 
 const originalEnv = process.env;
@@ -47,7 +40,7 @@ beforeEach(() => {
 });
 
 describe('sendOrderConfirmationEmail', () => {
-  it('sends a confirmation email with order details and a 33% progress bar', async () => {
+  it('sends a confirmation email with order details, total and progress bar', async () => {
     const { sendOrderConfirmationEmail } = loadEmailModule({
       SMTP_USER: 'shop@example.com',
       SMTP_PASS: 'secret',
@@ -59,11 +52,12 @@ describe('sendOrderConfirmationEmail', () => {
     const mail = sendMail.mock.calls[0][0];
     expect(mail.to).toBe('ada@example.com');
     expect(mail.from).toBe('"Skibidi Shop" <shop@example.com>');
-    expect(mail.subject).toBe('Order Confirmed #42 — Skibidi Shop');
+    expect(mail.subject).toBe('Order Confirmed SKB-000042 — Skibidi Shop');
     expect(mail.html).toContain('Hey Ada,');
-    expect(mail.html).toContain('#42');
+    expect(mail.html).toContain('SKB-000042');
     expect(mail.html).toContain('PlayStation 5');
-    expect(mail.html).toContain('width:33%');
+    expect(mail.html).toContain('$499.99');
+    expect(mail.html).toContain('width:25%');
   });
 
   it('is a no-op when SMTP credentials are not configured', async () => {
@@ -98,20 +92,40 @@ describe('sendOrderStatusUpdateEmail', () => {
   const load = () =>
     loadEmailModule({ SMTP_USER: 'shop@example.com', SMTP_PASS: 'secret' }).sendOrderStatusUpdateEmail;
 
-  it('uses the shipping copy and a 66% progress bar for shipped orders', async () => {
+  it('uses the shipping copy and a 75% progress bar for shipped orders', async () => {
     await load()('ada@example.com', order({ status: 'shipped' }));
 
     const mail = sendMail.mock.calls[0][0];
-    expect(mail.subject).toBe('🚚 Order #42: SHIPPED — Skibidi Shop');
+    expect(mail.subject).toBe('🚚 Order SKB-000042: SHIPPED — Skibidi Shop');
     expect(mail.html).toContain('updated to <strong>shipped</strong>');
-    expect(mail.html).toContain('width:66%');
+    expect(mail.html).toContain('width:75%');
+  });
+
+  it('uses the cancellation copy for cancelled orders', async () => {
+    await load()('ada@example.com', order({ status: 'cancelled' }));
+
+    const mail = sendMail.mock.calls[0][0];
+    expect(mail.subject).toBe('⚠️ Order SKB-000042: CANCELLED — Skibidi Shop');
+    expect(mail.html).toContain('has been cancelled');
+  });
+
+  it('marks the paid step for paid orders', async () => {
+    await load()('ada@example.com', order({ status: 'paid' }));
+
+    expect(sendMail.mock.calls[0][0].html).toContain('width:50%');
+  });
+
+  it('formats non-USD totals with the currency code', async () => {
+    await load()('ada@example.com', order({ status: 'shipped', currency: 'EUR', total_cents: 1250 }));
+
+    expect(sendMail.mock.calls[0][0].html).toContain('EUR 12.50');
   });
 
   it('uses the delivered copy and a full progress bar for delivered orders', async () => {
     await load()('ada@example.com', order({ status: 'delivered' }));
 
     const mail = sendMail.mock.calls[0][0];
-    expect(mail.subject).toBe('🎉 Order #42: DELIVERED — Skibidi Shop');
+    expect(mail.subject).toBe('🎉 Order SKB-000042: DELIVERED — Skibidi Shop');
     expect(mail.html).toContain('has been delivered');
     expect(mail.html).toContain('width:100%');
   });
@@ -122,6 +136,15 @@ describe('sendOrderStatusUpdateEmail', () => {
     await sendOrderStatusUpdateEmail('ada@example.com', order({ status: 'shipped' }));
 
     expect(sendMail).not.toHaveBeenCalled();
+  });
+
+  it('defaults the currency to USD and shows the first step for unknown statuses', async () => {
+    const { formatMoney } = loadEmailModule({ SMTP_USER: 'shop@example.com', SMTP_PASS: 'secret' });
+    expect(formatMoney(500)).toBe('$5.00');
+
+    await load()('ada@example.com', order({ status: 'refunded' as Order['status'] }));
+
+    expect(sendMail.mock.calls[0][0].html).toContain('width:25%');
   });
 
   it('swallows transport failures', async () => {

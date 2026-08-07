@@ -601,8 +601,8 @@
 
   async function loadProducts() {
     try {
-      const res = await fetch('/api/products');
-      products = await res.json();
+      const res = await fetch('/api/products?limit=48');
+      products = (await res.json()).items;
       renderProducts();
     } catch {}
   }
@@ -622,7 +622,7 @@
           <div class="card-name">${esc(p.name)}</div>
           <div class="card-desc">${esc(p.description)}</div>
           <div class="card-footer">
-            <span class="card-price">$${Number(p.price).toFixed(2)}</span>
+            <span class="card-price">$${(p.price_cents / 100).toFixed(2)}</span>
             <button class="btn-buy" id="buy-${p.id}" onclick="buy(${p.id}, this)">Buy Now</button>
           </div>
         </div>
