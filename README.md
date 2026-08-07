@@ -90,7 +90,15 @@ cd backend
 npm run dev
 ```
 
-### 5. Access
+### 5. Testing
+Unit tests run against mocked PostgreSQL, Firebase, SMTP and WebSocket layers, so no database or credentials are needed:
+```bash
+cd backend
+npm test              # run the suite
+npm run test:coverage # run with a coverage report
+```
+
+### 6. Access
 - **Storefront**: `http://localhost:3000`
 - **Admin Dashboard**: `http://localhost:3000/admin.html`
 
