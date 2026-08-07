@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { pool } from '../db/pool';
 import { OrderStatus } from '../types';
+import { respondWithServerError } from '../utils/http';
 
 const router = Router();
 const VALID: OrderStatus[] = ['pending', 'shipped', 'delivered'];
@@ -10,7 +11,7 @@ router.get('/', async (_req: Request, res: Response) => {
     const result = await pool.query('SELECT * FROM orders ORDER BY id DESC');
     res.json(result.rows);
   } catch (err) {
-    res.status(500).json({ error: 'Internal server error' });
+    respondWithServerError(res, 'Orders fetch failed', err);
   }
 });
 
@@ -29,7 +30,7 @@ router.post('/', async (req: Request, res: Response) => {
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    res.status(500).json({ error: 'Internal server error' });
+    respondWithServerError(res, 'Order creation failed', err);
   }
 });
 
@@ -50,7 +51,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
     if (result.rowCount === 0) { res.status(404).json({ error: 'Not found' }); return; }
     res.json(result.rows[0]);
   } catch (err) {
-    res.status(500).json({ error: 'Internal server error' });
+    respondWithServerError(res, `Order status update failed for order ${id}`, err);
   }
 });
 
@@ -61,7 +62,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
     if (result.rowCount === 0) { res.status(404).json({ error: 'Not found' }); return; }
     res.json({ deleted: result.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: 'Internal server error' });
+    respondWithServerError(res, `Order deletion failed for order ${id}`, err);
   }
 });
 

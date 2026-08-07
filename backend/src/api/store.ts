@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 import { pool } from '../db/pool';
+import { respondWithServerError } from '../utils/http';
 
 const router = Router();
 
@@ -41,8 +42,7 @@ router.post('/orders', authenticateToken, async (req: AuthenticatedRequest, res:
 
     res.status(201).json(orderResult.rows[0]);
   } catch (err) {
-    console.error('Order placement failed:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    respondWithServerError(res, 'Order placement failed', err);
   }
 });
 
@@ -57,8 +57,7 @@ router.get('/my-orders', authenticateToken, async (req: AuthenticatedRequest, re
     );
     res.json(result.rows);
   } catch (err) {
-    console.error('Orders fetch failed:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    respondWithServerError(res, 'Customer orders fetch failed', err);
   }
 });
 

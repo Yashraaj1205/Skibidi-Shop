@@ -550,9 +550,21 @@
   let products = [];
   let orders = [];
 
+  async function requestJSON(url, options) {
+    const res = await fetch(url, options);
+    const text = await res.text();
+    let body = null;
+    if (text) {
+      try { body = JSON.parse(text); } catch { body = null; }
+    }
+    if (!res.ok) {
+      throw new Error((body && body.error) || `${url} failed with status ${res.status}`);
+    }
+    return body;
+  }
+
   async function initStore() {
-    const res = await fetch('/api/config');
-    const config = await res.json();
+    const config = await requestJSON('/api/config');
     firebase.initializeApp(config);
     
     auth = firebase.auth();
@@ -577,10 +589,15 @@
     });
   }
 
-  initStore();
+  initStore().catch((e) => {
+    console.error('Storefront initialization failed:', e);
+    document.querySelector('.gate-sub').textContent =
+      'The storefront could not be initialized. Please reload the page or try again later.';
+  });
 
   function googleLogin() {
     auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch((e) => {
+      console.error('Google sign-in failed:', e);
       toast('Error', 'Google sign-in failed. Try again.');
     });
   }
@@ -589,16 +606,22 @@
 
   async function syncProfile() {
     try {
-      await fetch('/api/auth/sync', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
-    } catch {}
+      await requestJSON('/api/auth/sync', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } });
+    } catch (e) {
+      console.error('Profile sync failed:', e);
+      toast('Sync Failed', 'We could not sync your profile — ordering may not work.');
+    }
   }
 
   async function loadProducts() {
     try {
-      const res = await fetch('/api/products');
-      products = await res.json();
+      products = await requestJSON('/api/products');
       renderProducts();
-    } catch {}
+    } catch (e) {
+      console.error('Product load failed:', e);
+      document.getElementById('grid').innerHTML = '<div class="empty">Failed to load the catalog. Please reload.</div>';
+      toast('Catalog Unavailable', e.message);
+    }
   }
 
   function renderProducts() {
@@ -629,15 +652,14 @@
     btn.disabled = true;
     btn.textContent = 'Processing...';
     try {
-      const res = await fetch('/api/store/orders', {
+      const order = await requestJSON('/api/store/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
         body: JSON.stringify({ product_id: productId })
       });
-      if (!res.ok) throw new Error((await res.json()).error);
-      const order = await res.json();
       toast('Order Placed!', `${order.product_name} — check your email for confirmation.`);
     } catch (e) {
+      console.error('Order placement failed:', e);
       toast('Failed', e.message || 'Could not place order');
     }
     btn.disabled = false;
@@ -646,10 +668,12 @@
 
   async function loadOrders() {
     try {
-      const res = await fetch('/api/store/my-orders', { headers: { 'Authorization': 'Bearer ' + token } });
-      orders = await res.json();
+      orders = await requestJSON('/api/store/my-orders', { headers: { 'Authorization': 'Bearer ' + token } });
       renderOrders();
-    } catch {}
+    } catch (e) {
+      console.error('Order load failed:', e);
+      document.getElementById('tracker-list').innerHTML = '<div class="empty">Failed to load your orders. Please reload.</div>';
+    }
   }
 
   function progressWidth(s) { return s === 'pending' ? '20%' : s === 'shipped' ? '60%' : '100%'; }
@@ -696,8 +720,16 @@
   ws.onopen = () => { wsDot.classList.add('on'); wsText.textContent = 'Live'; };
   ws.onclose = () => { wsDot.classList.remove('on'); wsText.textContent = 'Offline'; };
 
+  ws.onerror = (e) => { console.error('WebSocket error:', e); };
+
   ws.onmessage = (e) => {
-    const msg = JSON.parse(e.data);
+    let msg;
+    try {
+      msg = JSON.parse(e.data);
+    } catch (err) {
+      console.error('Ignoring malformed WebSocket message:', e.data, err);
+      return;
+    }
     if (msg.type !== 'order_change') return;
 
     const user = auth.currentUser;

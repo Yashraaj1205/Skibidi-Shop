@@ -1,11 +1,12 @@
 import 'dotenv/config';
-import express from 'express';
+import express, { NextFunction, Request, Response } from 'express';
 import http from 'http';
 import path from 'path';
 import cors from 'cors';
 import { runMigrations } from './db/migrate';
 import { startDBListener } from './db/listener';
 import { createWebSocketServer } from './ws/server';
+import { initializeFirebase } from './config/firebase';
 import authRoutes from './api/auth';
 import productRoutes from './api/products';
 import storeRoutes from './api/store';
@@ -14,6 +15,7 @@ import orderRoutes from './api/orders';
 const PORT = process.env.PORT || 3000;
 
 async function main() {
+  initializeFirebase();
   await runMigrations();
   await startDBListener();
 
@@ -38,12 +40,31 @@ async function main() {
     });
   });
 
+  app.use('/api', (_req, res) => {
+    res.status(404).json({ error: 'Not found' });
+  });
+
   app.get('*', (_req, res) => {
-    res.sendFile(path.join(__dirname, '../../client/index.html'));
+    res.sendFile(path.join(__dirname, '../../client/index.html'), (err) => {
+      if (!err) return;
+      console.error('Failed to serve index.html:', err);
+      if (!res.headersSent) res.status(500).send('Internal server error');
+    });
+  });
+
+  app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
+    console.error(`Unhandled error while handling ${req.method} ${req.originalUrl}:`, err);
+    if (res.headersSent) return;
+    res.status(500).json({ error: 'Internal server error' });
   });
 
   const server = http.createServer(app);
   createWebSocketServer(server);
+
+  server.on('error', (err) => {
+    console.error('HTTP server error:', err);
+    process.exit(1);
+  });
 
   server.listen(PORT, () => {
     console.log(`\nServer  → http://localhost:${PORT}`);
@@ -51,6 +72,15 @@ async function main() {
     console.log(`API     → http://localhost:${PORT}/api\n`);
   });
 }
+
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled promise rejection:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err);
+  process.exit(1);
+});
 
 main().catch((err) => {
   console.error('Startup failed:', err);

@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { auth } from '../config/firebase';
+import { getAuth } from '../config/firebase';
 
 export interface AuthenticatedRequest extends Request {
   user?: {
@@ -9,6 +9,14 @@ export interface AuthenticatedRequest extends Request {
     photo_url?: string;
   };
 }
+
+const REJECTED_TOKEN_CODES = new Set([
+  'auth/argument-error',
+  'auth/id-token-expired',
+  'auth/id-token-revoked',
+  'auth/invalid-id-token',
+  'auth/user-disabled'
+]);
 
 export async function authenticateToken(
   req: AuthenticatedRequest,
@@ -24,7 +32,7 @@ export async function authenticateToken(
   }
 
   try {
-    const decoded = await auth.verifyIdToken(token);
+    const decoded = await getAuth().verifyIdToken(token);
     req.user = {
       firebase_uid: decoded.uid,
       email: decoded.email || '',
@@ -32,7 +40,16 @@ export async function authenticateToken(
       photo_url: decoded.picture || undefined
     };
     next();
-  } catch {
-    res.status(403).json({ error: 'Invalid or expired token' });
+  } catch (err) {
+    const code = (err as { code?: string }).code;
+
+    if (code && REJECTED_TOKEN_CODES.has(code)) {
+      console.warn(`Token rejected (${code})`);
+      res.status(403).json({ error: 'Invalid or expired token' });
+      return;
+    }
+
+    console.error('Token verification failed unexpectedly:', err);
+    res.status(503).json({ error: 'Authentication service unavailable' });
   }
 }
