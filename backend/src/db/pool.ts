@@ -11,3 +11,7 @@ export const pool = new Pool(
         password: process.env.DB_PASSWORD || 'apt_pass',
       }
 );
+
+pool.on('error', (err) => {
+  console.error('Unexpected error on an idle PostgreSQL client:', err);
+});

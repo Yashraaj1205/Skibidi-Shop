@@ -9,6 +9,17 @@ const transporter = nodemailer.createTransport({
   auth: { user: smtpUser, pass: smtpPass }
 });
 
+let missingConfigWarned = false;
+
+function smtpConfigured(): boolean {
+  if (smtpUser && smtpPass) return true;
+  if (!missingConfigWarned) {
+    missingConfigWarned = true;
+    console.warn('SMTP_USER/SMTP_PASS are not configured — order emails are disabled');
+  }
+  return false;
+}
+
 function progressHTML(status: string): string {
   const pct = status === 'pending' ? '33%' : status === 'shipped' ? '66%' : '100%';
   const c = (s: string, active: boolean) => active ? '#00ff88' : '#555';
@@ -69,28 +80,24 @@ function template(title: string, name: string, body: string, order: Order): stri
 }
 
 export async function sendOrderConfirmationEmail(toEmail: string, order: Order): Promise<void> {
-  if (!smtpUser || !smtpPass) return;
+  if (!smtpConfigured()) return;
 
-  try {
-    await transporter.sendMail({
-      from: `"Skibidi Shop" <${smtpUser}>`,
-      to: toEmail,
-      subject: `Order Confirmed #${order.id} — Skibidi Shop`,
-      html: template(
-        `Order #${order.id} Confirmed`,
-        order.customer_name,
-        '<p>Your order has been placed successfully! We\'re preparing it for shipment. Track your order in real-time on the storefront.</p>',
-        order
-      )
-    });
-    console.log(`Email sent to ${toEmail} (confirmation)`);
-  } catch (err) {
-    console.error('Email failed:', err);
-  }
+  await transporter.sendMail({
+    from: `"Skibidi Shop" <${smtpUser}>`,
+    to: toEmail,
+    subject: `Order Confirmed #${order.id} — Skibidi Shop`,
+    html: template(
+      `Order #${order.id} Confirmed`,
+      order.customer_name,
+      '<p>Your order has been placed successfully! We\'re preparing it for shipment. Track your order in real-time on the storefront.</p>',
+      order
+    )
+  });
+  console.log(`Email sent to ${toEmail} (confirmation)`);
 }
 
 export async function sendOrderStatusUpdateEmail(toEmail: string, order: Order): Promise<void> {
-  if (!smtpUser || !smtpPass) return;
+  if (!smtpConfigured()) return;
 
   const msg = order.status === 'delivered'
     ? '<p>Your order has been delivered! Hope you love it.</p>'
@@ -98,15 +105,11 @@ export async function sendOrderStatusUpdateEmail(toEmail: string, order: Order):
 
   const emoji = order.status === 'delivered' ? '🎉' : '🚚';
 
-  try {
-    await transporter.sendMail({
-      from: `"Skibidi Shop" <${smtpUser}>`,
-      to: toEmail,
-      subject: `${emoji} Order #${order.id}: ${order.status.toUpperCase()} — Skibidi Shop`,
-      html: template(`Order #${order.id} ${order.status}`, order.customer_name, msg, order)
-    });
-    console.log(`Email sent to ${toEmail} (${order.status})`);
-  } catch (err) {
-    console.error('Email failed:', err);
-  }
+  await transporter.sendMail({
+    from: `"Skibidi Shop" <${smtpUser}>`,
+    to: toEmail,
+    subject: `${emoji} Order #${order.id}: ${order.status.toUpperCase()} — Skibidi Shop`,
+    html: template(`Order #${order.id} ${order.status}`, order.customer_name, msg, order)
+  });
+  console.log(`Email sent to ${toEmail} (${order.status})`);
 }

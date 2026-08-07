@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 import { pool } from '../db/pool';
+import { respondWithServerError } from '../utils/http';
 
 const router = Router();
 
@@ -20,8 +21,7 @@ router.post('/sync', authenticateToken, async (req: AuthenticatedRequest, res: R
     );
     res.json(result.rows[0]);
   } catch (err) {
-    console.error('Sync failed:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    respondWithServerError(res, 'Profile sync failed', err);
   }
 });
 
@@ -33,8 +33,7 @@ router.get('/me', authenticateToken, async (req: AuthenticatedRequest, res: Resp
     if (result.rowCount === 0) { res.status(404).json({ error: 'Not found' }); return; }
     res.json(result.rows[0]);
   } catch (err) {
-    console.error('Profile fetch failed:', err);
-    res.status(500).json({ error: 'Internal server error' });
+    respondWithServerError(res, 'Profile fetch failed', err);
   }
 });
 
