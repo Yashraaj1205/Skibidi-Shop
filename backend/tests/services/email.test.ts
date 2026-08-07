@@ -8,19 +8,16 @@ type EmailModule = typeof import('../../src/services/email');
 
 function loadEmailModule(env: { SMTP_USER?: string; SMTP_PASS?: string }): EmailModule {
   let mod: EmailModule;
-  const previous = { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS };
 
-  if (env.SMTP_USER === undefined) delete process.env.SMTP_USER;
-  else process.env.SMTP_USER = env.SMTP_USER;
-  if (env.SMTP_PASS === undefined) delete process.env.SMTP_PASS;
-  else process.env.SMTP_PASS = env.SMTP_PASS;
+  delete process.env.SMTP_USER;
+  delete process.env.SMTP_PASS;
+  if (env.SMTP_USER !== undefined) process.env.SMTP_USER = env.SMTP_USER;
+  if (env.SMTP_PASS !== undefined) process.env.SMTP_PASS = env.SMTP_PASS;
 
   jest.isolateModules(() => {
     mod = require('../../src/services/email');
   });
 
-  process.env.SMTP_USER = previous.user;
-  process.env.SMTP_PASS = previous.pass;
   return mod!;
 }
 
@@ -36,7 +33,14 @@ function order(overrides: Partial<Order> = {}): Order {
   };
 }
 
+const originalEnv = process.env;
+
+afterEach(() => {
+  process.env = originalEnv;
+});
+
 beforeEach(() => {
+  process.env = { ...originalEnv };
   jest.spyOn(console, 'log').mockImplementation(() => undefined);
   jest.spyOn(console, 'error').mockImplementation(() => undefined);
   sendMail.mockResolvedValue({ messageId: 'x' });

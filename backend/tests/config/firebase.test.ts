@@ -18,16 +18,17 @@ function loadFirebase(): void {
   });
 }
 
-const originalPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
+const originalEnv = process.env;
 
 beforeEach(() => {
+  process.env = { ...originalEnv };
+  delete process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
   jest.spyOn(console, 'log').mockImplementation(() => undefined);
   jest.spyOn(console, 'error').mockImplementation(() => undefined);
 });
 
 afterEach(() => {
-  if (originalPath === undefined) delete process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
-  else process.env.FIREBASE_SERVICE_ACCOUNT_PATH = originalPath;
+  process.env = originalEnv;
 });
 
 describe('firebase config', () => {
@@ -56,7 +57,6 @@ describe('firebase config', () => {
   });
 
   it('defaults to firebase-service-key.json in the backend root', () => {
-    delete process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
     readFileSync.mockReturnValue(JSON.stringify({ project_id: 'p' }));
 
     loadFirebase();

@@ -47,7 +47,20 @@ async function start(): Promise<FakeClient> {
   return FakeClient.instances[FakeClient.instances.length - 1];
 }
 
+const DB_VARS = [
+  'DATABASE_URL',
+  'DB_HOST',
+  'DB_PORT',
+  'DB_NAME',
+  'DB_USER',
+  'DB_PASSWORD',
+] as const;
+
+const originalEnv = process.env;
+
 beforeEach(() => {
+  process.env = { ...originalEnv };
+  for (const key of DB_VARS) delete process.env[key];
   FakeClient.instances = [];
   dbEvents.removeAllListeners();
   jest.spyOn(console, 'log').mockImplementation(() => undefined);
@@ -55,6 +68,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  process.env = originalEnv;
   dbEvents.removeAllListeners();
 });
 
@@ -68,19 +82,34 @@ describe('startDBListener', () => {
 
   it('prefers DATABASE_URL over discrete connection settings', async () => {
     process.env.DATABASE_URL = 'postgres://user:pass@host:5432/db';
-    try {
-      await start();
-      expect(FakeClient.lastConfig).toEqual({
-        connectionString: 'postgres://user:pass@host:5432/db',
-      });
-    } finally {
-      delete process.env.DATABASE_URL;
-    }
+    process.env.DB_HOST = 'ignored.internal';
+
+    await start();
+
+    expect(FakeClient.lastConfig).toEqual({
+      connectionString: 'postgres://user:pass@host:5432/db',
+    });
   });
 
-  it('falls back to discrete connection settings', async () => {
-    delete process.env.DATABASE_URL;
+  it('reads discrete connection settings from the environment', async () => {
+    process.env.DB_HOST = 'db.internal';
+    process.env.DB_PORT = '6543';
+    process.env.DB_NAME = 'shop';
+    process.env.DB_USER = 'shop_user';
+    process.env.DB_PASSWORD = 'shop_pass';
 
+    await start();
+
+    expect(FakeClient.lastConfig).toEqual({
+      host: 'db.internal',
+      port: 6543,
+      database: 'shop',
+      user: 'shop_user',
+      password: 'shop_pass',
+    });
+  });
+
+  it('falls back to default connection settings', async () => {
     await start();
 
     expect(FakeClient.lastConfig).toEqual({

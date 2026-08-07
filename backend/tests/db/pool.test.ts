@@ -13,14 +13,45 @@ function loadPool(): void {
   });
 }
 
-const originalUrl = process.env.DATABASE_URL;
+const DB_VARS = [
+  'DATABASE_URL',
+  'DB_HOST',
+  'DB_PORT',
+  'DB_NAME',
+  'DB_USER',
+  'DB_PASSWORD',
+] as const;
+
+const originalEnv = process.env;
+
+beforeEach(() => {
+  process.env = { ...originalEnv };
+  for (const key of DB_VARS) delete process.env[key];
+});
 
 afterEach(() => {
-  if (originalUrl === undefined) delete process.env.DATABASE_URL;
-  else process.env.DATABASE_URL = originalUrl;
+  process.env = originalEnv;
 });
 
 describe('pool', () => {
+  it('reads discrete connection settings from the environment', () => {
+    process.env.DB_HOST = 'db.internal';
+    process.env.DB_PORT = '6543';
+    process.env.DB_NAME = 'shop';
+    process.env.DB_USER = 'shop_user';
+    process.env.DB_PASSWORD = 'shop_pass';
+
+    loadPool();
+
+    expect(poolConstructor).toHaveBeenCalledWith({
+      host: 'db.internal',
+      port: 6543,
+      database: 'shop',
+      user: 'shop_user',
+      password: 'shop_pass',
+    });
+  });
+
   it('uses DATABASE_URL when set', () => {
     process.env.DATABASE_URL = 'postgres://user:pass@host:5432/db';
 
@@ -32,8 +63,6 @@ describe('pool', () => {
   });
 
   it('falls back to defaults when no connection settings are provided', () => {
-    delete process.env.DATABASE_URL;
-
     loadPool();
 
     expect(poolConstructor).toHaveBeenCalledWith({
