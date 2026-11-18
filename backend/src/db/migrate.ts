@@ -1,4 +1,5 @@
 import { pool } from './pool';
+import { seedCatalog } from './seed';
 
 export async function runMigrations(): Promise<void> {
   const client = await pool.connect();
@@ -16,6 +17,16 @@ export async function runMigrations(): Promise<void> {
     `);
 
     await client.query(`
+      CREATE TABLE IF NOT EXISTS categories (
+        id        SERIAL PRIMARY KEY,
+        name      TEXT UNIQUE NOT NULL,
+        slug      TEXT UNIQUE NOT NULL,
+        icon      TEXT,
+        parent_id INTEGER REFERENCES categories(id) ON DELETE SET NULL
+      );
+    `);
+
+    await client.query(`
       CREATE TABLE IF NOT EXISTS products (
         id          SERIAL        PRIMARY KEY,
         name        TEXT          NOT NULL,
@@ -25,6 +36,63 @@ export async function runMigrations(): Promise<void> {
         category    TEXT          NOT NULL DEFAULT 'general',
         in_stock    BOOLEAN       NOT NULL DEFAULT TRUE,
         created_at  TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+      );
+    `);
+
+    await client.query(`
+      ALTER TABLE products ADD COLUMN IF NOT EXISTS brand TEXT;
+      ALTER TABLE products ADD COLUMN IF NOT EXISTS rating DECIMAL(3,1) DEFAULT 4.5;
+      ALTER TABLE products ADD COLUMN IF NOT EXISTS review_count INTEGER DEFAULT 0;
+      ALTER TABLE products ADD COLUMN IF NOT EXISTS tags TEXT[] DEFAULT '{}';
+      ALTER TABLE products ADD COLUMN IF NOT EXISTS stock_quantity INTEGER DEFAULT 100;
+      ALTER TABLE products ADD COLUMN IF NOT EXISTS discount_pct DECIMAL(4,1) DEFAULT 0;
+      ALTER TABLE products ADD COLUMN IF NOT EXISTS original_price DECIMAL(10,2);
+      ALTER TABLE products ADD COLUMN IF NOT EXISTS image_urls TEXT[] DEFAULT '{}';
+      ALTER TABLE products ADD COLUMN IF NOT EXISTS category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL;
+    `);
+
+    // Add search_vector for fast PostgreSQL full-text search
+    await client.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'products' AND column_name = 'search_vector'
+        ) THEN
+          ALTER TABLE products ADD COLUMN search_vector tsvector
+            GENERATED ALWAYS AS (
+              to_tsvector('english', coalesce(name,'') || ' ' || coalesce(description,'') || ' ' || coalesce(brand,'') || ' ' || coalesce(category,''))
+            ) STORED;
+        END IF;
+      END $$;
+    `);
+
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_products_search ON products USING GIN(search_vector);
+      CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
+      CREATE INDEX IF NOT EXISTS idx_products_brand ON products(brand);
+      CREATE INDEX IF NOT EXISTS idx_products_price ON products(price);
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS reviews (
+        id          SERIAL PRIMARY KEY,
+        product_id  INTEGER REFERENCES products(id) ON DELETE CASCADE,
+        user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        rating      INTEGER CHECK (rating BETWEEN 1 AND 5),
+        comment     TEXT NOT NULL,
+        created_at  TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS cart_items (
+        id         SERIAL PRIMARY KEY,
+        user_id    INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
+        quantity   INTEGER NOT NULL DEFAULT 1 CHECK (quantity > 0),
+        added_at   TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(user_id, product_id)
       );
     `);
 
@@ -44,22 +112,12 @@ export async function runMigrations(): Promise<void> {
     await client.query(`
       ALTER TABLE orders ADD COLUMN IF NOT EXISTS customer_email TEXT;
       ALTER TABLE orders ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;
+      ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_address TEXT;
+      ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_method TEXT DEFAULT 'Card';
+      ALTER TABLE orders ADD COLUMN IF NOT EXISTS total_amount DECIMAL(10,2);
+      ALTER TABLE orders ADD COLUMN IF NOT EXISTS coupon_code TEXT;
+      ALTER TABLE orders ADD COLUMN IF NOT EXISTS phone TEXT;
     `);
-
-    const productCheck = await client.query('SELECT COUNT(*) FROM products');
-    if (parseInt(productCheck.rows[0].count) === 0) {
-      console.log('Seeding product catalog...');
-      await client.query(`
-        INSERT INTO products (name, description, price, image_url, category) VALUES
-        ('iPhone 15 Pro Max', 'Titanium design with A17 Pro chip, customizable Action button, and 5x Telephoto camera.', 1199.99, 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?w=500&auto=format&fit=crop&q=60', 'Phones'),
-        ('MacBook Pro M3', 'The ultimate laptop with 14-core CPU, 30-core GPU, 36GB unified memory, and Liquid Retina XDR display.', 2499.99, 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=500&auto=format&fit=crop&q=60', 'Laptops'),
-        ('Sony WH-1000XM5', 'Industry-leading noise-canceling wireless headphones with premium sound and crystal-clear calls.', 349.99, 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=60', 'Audio'),
-        ('Keychron Q1 Pro', 'Full-aluminum custom mechanical keyboard with hot-swappable switches and RGB backlight.', 199.99, 'https://images.unsplash.com/photo-1618384887929-16ec33fab9ef?w=500&auto=format&fit=crop&q=60', 'Peripherals'),
-        ('Apple Watch Ultra 2', 'The most rugged Apple Watch ever built for outdoor adventures and peak athletic performance.', 799.99, 'https://images.unsplash.com/photo-1434494878577-86c23bcb06b9?w=500&auto=format&fit=crop&q=60', 'Wearables'),
-        ('PlayStation 5', 'Lightning-fast SSD, haptic feedback, adaptive triggers, and stunning 4K gaming experiences.', 499.99, 'https://images.unsplash.com/photo-1606813907291-d86efa9b94db?w=500&auto=format&fit=crop&q=60', 'Gaming')
-      `);
-      console.log('Product catalog seeded');
-    }
 
     await client.query(`
       CREATE OR REPLACE FUNCTION notify_orders_change()
@@ -94,6 +152,9 @@ export async function runMigrations(): Promise<void> {
       AFTER INSERT OR UPDATE OR DELETE ON orders
       FOR EACH ROW EXECUTE FUNCTION notify_orders_change();
     `);
+
+    // Seed categories and 500+ products
+    await seedCatalog(client);
 
     console.log('Migrations complete');
   } finally {

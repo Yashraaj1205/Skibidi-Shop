@@ -11,6 +11,8 @@ import authRoutes from './api/auth';
 import productRoutes from './api/products';
 import storeRoutes from './api/store';
 import orderRoutes from './api/orders';
+import cartRoutes from './api/cart';
+import aiRoutes from './api/ai';
 
 const PORT = process.env.PORT || 3000;
 
@@ -28,6 +30,8 @@ async function main() {
   app.use('/api/products', productRoutes);
   app.use('/api/store', storeRoutes);
   app.use('/api/orders', orderRoutes);
+  app.use('/api/cart', cartRoutes);
+  app.use('/api/ai', aiRoutes);
 
   app.get('/api/config', (_req, res) => {
     res.json({

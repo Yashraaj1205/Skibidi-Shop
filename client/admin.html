@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Skibidi Shop — Admin Dashboard</title>
+  <title>Skibidi Shop — Executive Admin Portal & AI Advisor</title>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      background: #050505;
+      background: #060606;
       color: #fff;
-      font-family: 'Space Grotesk', sans-serif;
+      font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
@@ -18,101 +18,188 @@
 
     nav {
       position: sticky; top: 0; z-index: 100;
-      background: rgba(5,5,5,0.85);
+      background: rgba(8,8,8,0.88);
       backdrop-filter: blur(20px);
       border-bottom: 1px solid #222;
-      padding: 0 40px; height: 64px;
+      padding: 0 40px; height: 68px;
       display: flex; align-items: center; justify-content: space-between;
     }
-    .logo { font-size: 20px; font-weight: 800; color: #00ff88; text-transform: uppercase; }
+    .logo { font-size: 20px; font-weight: 800; color: #00ff88; text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
     .logo span { color: #fff; }
+    .logo-badge { font-size: 10px; background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3); color: #00ff88; padding: 2px 6px; border-radius: 4px; }
     .nav-right { display: flex; align-items: center; gap: 20px; }
     .nav-link { font-size: 13px; font-weight: 600; color: #888; text-decoration: none; transition: color 0.2s; }
-    .nav-link:hover { color: #fff; }
-    .live-badge { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #888; background: #111; border: 1px solid #222; padding: 5px 12px; border-radius: 99px; }
+    .nav-link:hover { color: #00ff88; }
+    .live-badge { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #888; background: #121212; border: 1px solid #222; padding: 5px 12px; border-radius: 99px; }
     .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #ef4444; }
     .live-dot.on { background: #00ff88; box-shadow: 0 0 8px rgba(0,255,136,0.6); animation: blink 2s infinite; }
     @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
 
     main {
-      flex: 1; max-width: 1000px; width: 100%;
-      margin: 40px auto; padding: 0 24px;
-      display: grid; grid-template-columns: 2fr 1fr; gap: 32px;
+      flex: 1; max-width: 1400px; width: 100%;
+      margin: 32px auto; padding: 0 24px;
+      display: flex; flex-direction: column; gap: 24px;
+    }
+
+    /* KPI METRICS */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+    }
+    .kpi-card {
+      background: #111;
+      border: 1px solid #222;
+      border-radius: 14px;
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      transition: border-color 0.2s;
+    }
+    .kpi-card:hover { border-color: #333; }
+    .kpi-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #888; }
+    .kpi-val { font-size: 26px; font-weight: 800; color: #fff; }
+    .kpi-sub { font-size: 12px; color: #666; }
+
+    /* GRID COLUMNS */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1.3fr 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 1024px) {
+      .dashboard-grid { grid-template-columns: 1fr; }
     }
 
     .panel {
       background: #111; border: 1px solid #222;
-      border-radius: 16px; padding: 24px;
+      border-radius: 16px; padding: 22px;
+      display: flex; flex-direction: column;
     }
 
     .section-title {
-      font-size: 12px; font-weight: 700;
+      font-size: 12px; font-weight: 800;
       text-transform: uppercase; letter-spacing: 2px;
-      color: #888; margin-bottom: 20px;
+      color: #888; margin-bottom: 18px;
+      display: flex; align-items: center; justify-content: space-between;
     }
 
-    .order-list { display: flex; flex-direction: column; gap: 12px; }
+    /* ORDERS LIST */
+    .order-list { display: flex; flex-direction: column; gap: 10px; max-height: 480px; overflow-y: auto; }
 
     .order-card {
-      background: #1a1a1a; border: 1px solid #222;
+      background: #161616; border: 1px solid #222;
       border-radius: 12px; padding: 14px 18px;
       display: flex; justify-content: space-between; align-items: center;
       transition: transform 0.2s, border-color 0.2s;
-      animation: fadeIn 0.3s ease;
     }
-    .order-card:hover { transform: translateY(-2px); border-color: #333; }
+    .order-card:hover { border-color: #333; }
     .order-card.updated { animation: flash 1s ease; }
-
-    @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
-    @keyframes flash { 0%{border-color:#00ff88;box-shadow:0 0 10px rgba(0,255,136,0.15)} 100%{border-color:#222;box-shadow:none} }
+    @keyframes flash { 0%{border-color:#00ff88;box-shadow:0 0 10px rgba(0,255,136,0.2)} 100%{border-color:#222;box-shadow:none} }
 
     .order-info { display: flex; flex-direction: column; gap: 3px; }
     .order-id { font-size: 11px; color: #555; font-weight: 700; }
-    .customer-name { font-size: 15px; font-weight: 700; }
-    .product-name { font-size: 13px; color: #888; }
+    .customer-name { font-size: 14px; font-weight: 700; }
+    .product-name { font-size: 12px; color: #888; }
 
     .badge { font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 99px; text-transform: uppercase; }
     .badge-pending { background: rgba(234,179,8,0.12); color: #eab308; border: 1px solid rgba(234,179,8,0.2); }
     .badge-shipped { background: rgba(56,189,248,0.12); color: #38bdf8; border: 1px solid rgba(56,189,248,0.2); }
     .badge-delivered { background: rgba(0,255,136,0.12); color: #00ff88; border: 1px solid rgba(0,255,136,0.2); }
 
-    .form-group { margin-bottom: 14px; }
+    /* AI ADVISOR CHAT */
+    .ai-advisor-panel {
+      background: #111;
+      border: 1px solid #222;
+      border-radius: 16px;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      height: 580px;
+    }
+
+    .ai-advisor-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #222;
+      padding-bottom: 14px;
+      margin-bottom: 14px;
+    }
+
+    .ai-advisor-title {
+      font-size: 13px; font-weight: 800;
+      color: #00ff88; text-transform: uppercase; letter-spacing: 1.5px;
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    .ai-prompts-row {
+      display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none;
+      padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid #1a1a1a;
+    }
+    .ai-prompts-row::-webkit-scrollbar { display: none; }
+    .admin-ai-chip {
+      background: #1a1a1a; border: 1px solid #282828; color: #888;
+      padding: 5px 12px; border-radius: 99px; font-size: 11px; font-weight: 600;
+      white-space: nowrap; cursor: pointer; transition: all 0.2s;
+    }
+    .admin-ai-chip:hover { color: #00ff88; border-color: #00ff88; background: #222; }
+
+    .ai-chat-history {
+      flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;
+      padding-right: 4px;
+    }
+
+    .admin-msg { display: flex; flex-direction: column; max-width: 90%; }
+    .admin-msg.user { align-self: flex-end; }
+    .admin-msg.advisor { align-self: flex-start; }
+    .admin-bubble {
+      padding: 10px 14px; border-radius: 12px; font-size: 13px; line-height: 1.5;
+    }
+    .admin-msg.user .admin-bubble {
+      background: #00ff88; color: #000; font-weight: 600; border-bottom-right-radius: 2px;
+    }
+    .admin-msg.advisor .admin-bubble {
+      background: #181818; border: 1px solid #282828; color: #eee; border-bottom-left-radius: 2px;
+      white-space: pre-wrap;
+    }
+
+    .admin-ai-input-wrap {
+      display: flex; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid #222;
+    }
+
+    /* CONTROLS FORM */
+    .form-group { margin-bottom: 12px; }
     input, select {
       width: 100%; background: #0a0a0a; border: 1px solid #222;
       color: #fff; padding: 10px 14px; border-radius: 8px;
       font-size: 13px; font-family: inherit; outline: none;
-      transition: border-color 0.2s;
     }
-    input::placeholder { color: #444; }
     input:focus, select:focus { border-color: #00ff88; }
 
     button {
       width: 100%; padding: 10px 16px; border: none;
       border-radius: 8px; font-size: 13px; font-weight: 700;
       font-family: inherit; cursor: pointer;
-      transition: opacity 0.2s, transform 0.1s;
     }
-    button:hover { opacity: 0.9; }
-    button:active { transform: scale(0.98); }
-
     .btn-green { background: #00ff88; color: #000; }
-    .btn-orange { background: #f59e0b; color: #000; margin-top: 10px; }
-    .btn-red { background: #ef4444; color: #fff; margin-top: 10px; }
-
-    .divider { height: 1px; background: #222; margin: 20px 0; }
-    .empty { text-align: center; padding: 40px 20px; color: #444; font-size: 14px; }
-
-    ::-webkit-scrollbar { width: 5px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #222; border-radius: 99px; }
+    .btn-orange { background: #f59e0b; color: #000; margin-top: 8px; }
+    .btn-red { background: #ef4444; color: #fff; margin-top: 8px; }
+    .divider { height: 1px; background: #222; margin: 18px 0; }
+    .empty { text-align: center; padding: 40px 20px; color: #444; font-size: 13px; }
   </style>
 </head>
 <body>
 
 <nav>
-  <div class="logo"><em>Skibidi</em><span> Admin</span></div>
+  <div class="logo">
+    <em>Skibidi</em><span>Admin</span>
+    <span class="logo-badge">Executive</span>
+  </div>
   <div class="nav-right">
-    <a href="/" class="nav-link">← Back to Store</a>
+    <a href="/" class="nav-link">← Back to Storefront</a>
     <div class="live-badge">
       <span id="ws-dot" class="live-dot"></span>
       <span id="ws-text">Offline</span>
@@ -121,34 +208,101 @@
 </nav>
 
 <main id="admin-content" style="display: none;">
-  <div class="panel">
-    <div class="section-title">All Orders</div>
-    <div id="order-list" class="order-list">
-      <div class="empty">Loading...</div>
+  <!-- LIVE KPI METRICS -->
+  <section class="kpi-row">
+    <div class="kpi-card">
+      <span class="kpi-label">Total Orders</span>
+      <span class="kpi-val" id="kpi-total">0</span>
+      <span class="kpi-sub">Across platform</span>
     </div>
-  </div>
-
-  <div class="panel">
-    <div class="section-title">Controls</div>
-    <div class="form-group"><input id="inp-name" type="text" placeholder="Customer Name"></div>
-    <div class="form-group"><input id="inp-email" type="email" placeholder="Customer Email"></div>
-    <div class="form-group"><input id="inp-product" type="text" placeholder="Product Name"></div>
-    <button class="btn-green" onclick="createOrder()">Create Order</button>
-
-    <div class="divider"></div>
-
-    <div class="form-group"><input id="inp-id" type="number" placeholder="Order ID"></div>
-    <div class="form-group">
-      <select id="inp-status">
-        <option value="pending">Pending</option>
-        <option value="shipped">Shipped</option>
-        <option value="delivered">Delivered</option>
-      </select>
+    <div class="kpi-card">
+      <span class="kpi-label">Pending</span>
+      <span class="kpi-val" style="color: #eab308;" id="kpi-pending">0</span>
+      <span class="kpi-sub">Awaiting dispatch</span>
     </div>
-    <button class="btn-orange" onclick="updateOrder()">Update Status</button>
-    <button class="btn-red" onclick="deleteOrder()">Delete Order</button>
+    <div class="kpi-card">
+      <span class="kpi-label">In Transit</span>
+      <span class="kpi-val" style="color: #38bdf8;" id="kpi-shipped">0</span>
+      <span class="kpi-sub">Out for delivery</span>
+    </div>
+    <div class="kpi-card">
+      <span class="kpi-label">Delivered</span>
+      <span class="kpi-val" style="color: #00ff88;" id="kpi-delivered">0</span>
+      <span class="kpi-sub">Fulfilled successfully</span>
+    </div>
+    <div class="kpi-card">
+      <span class="kpi-label">Low Stock Alerts</span>
+      <span class="kpi-val" style="color: #ef4444;" id="kpi-stock">0</span>
+      <span class="kpi-sub">Items &lt; 20 units</span>
+    </div>
+  </section>
 
-    <p id="controls-status" style="margin-top: 14px; font-size: 13px; font-weight: 600; display: none;"></p>
+  <!-- DASHBOARD GRID -->
+  <div class="dashboard-grid">
+    <!-- LEFT: ORDERS LIST & STATUS CONTROLS -->
+    <div style="display: flex; flex-direction: column; gap: 24px;">
+      <div class="panel">
+        <div class="section-title">
+          <span>Real-Time Orders Stream</span>
+          <span style="font-size: 11px; color: #00ff88;">● Live WebSocket</span>
+        </div>
+        <div id="order-list" class="order-list">
+          <div class="empty">Loading orders...</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="section-title">Order State Mutator</div>
+        <div class="form-group"><input id="inp-id" type="number" placeholder="Enter Order ID"></div>
+        <div class="form-group">
+          <select id="inp-status">
+            <option value="pending">Pending</option>
+            <option value="shipped">Shipped (Dispatches Tracking Email)</option>
+            <option value="delivered">Delivered (Fires Celebration Notification)</option>
+          </select>
+        </div>
+        <button class="btn-orange" onclick="updateOrder()">Update Order Status</button>
+        <button class="btn-red" onclick="deleteOrder()">Delete Order</button>
+        <p id="controls-status" style="margin-top: 12px; font-size: 13px; font-weight: 600; display: none;"></p>
+
+        <div class="divider"></div>
+        <div class="section-title">Manual Order Simulation</div>
+        <div class="form-group"><input id="inp-name" type="text" placeholder="Customer Name"></div>
+        <div class="form-group"><input id="inp-email" type="email" placeholder="Customer Email"></div>
+        <div class="form-group"><input id="inp-product" type="text" placeholder="Product Name"></div>
+        <button class="btn-green" onclick="createOrder()">Simulate New Order</button>
+      </div>
+    </div>
+
+    <!-- RIGHT: AI BUSINESS ADVISOR -->
+    <div class="ai-advisor-panel">
+      <div class="ai-advisor-header">
+        <div class="ai-advisor-title">
+          <span>🧠 AI Business Advisor</span>
+          <span style="font-size: 10px; background: rgba(0,255,136,0.15); padding: 2px 6px; border-radius: 4px;">Groq AI</span>
+        </div>
+        <span style="font-size: 11px; color: #666;">Connected to DB</span>
+      </div>
+
+      <div class="ai-prompts-row">
+        <button class="admin-ai-chip" onclick="askAdvisor('📊 Summarize our total sales, fulfillment rates, and top revenue drivers')">📊 Sales Summary</button>
+        <button class="admin-ai-chip" onclick="askAdvisor('⚠️ Which inventory items are dangerously low and need urgent restocking?')">⚠️ Restock Alert</button>
+        <button class="admin-ai-chip" onclick="askAdvisor('🚀 Give me 3 concrete promotional strategies to boost customer order value')">🚀 Growth Strategy</button>
+      </div>
+
+      <div class="ai-chat-history" id="advisor-chat">
+        <div class="admin-msg advisor">
+          <div class="admin-bubble">Greetings, Store Executive. I am your <strong>Chief Growth Officer AI</strong>.
+
+I have direct access to your live orders and inventory database. Ask me anything regarding sales velocity, inventory restock priorities, or operational bottlenecks!</div>
+        </div>
+      </div>
+
+      <div class="admin-ai-input-wrap">
+        <input type="text" id="advisor-input" placeholder="Ask AI Advisor about sales, restock, or strategy..." autocomplete="off">
+        <button class="btn-green" style="width: auto; padding: 0 18px;" id="advisor-btn" onclick="sendAdvisorQuestion()">Ask</button>
+      </div>
+    </div>
   </div>
 </main>
 
@@ -165,6 +319,8 @@
 <script>
   let auth;
   const ADMIN_EMAIL = 'skibidi.businessguru@gmail.com';
+  let orders = [];
+  let advisorHistory = [];
 
   const statusEl = document.getElementById('controls-status');
 
@@ -174,7 +330,7 @@
     statusEl.style.display = 'block';
   }
 
-  async function requestJSON(url, options) {
+  async function requestJSON(url, options = {}) {
     const res = await fetch(url, options);
     const text = await res.text();
     let body = null;
@@ -189,18 +345,23 @@
 
   async function initAdmin() {
     const config = await requestJSON('/api/config');
-    firebase.initializeApp(config);
-    
-    auth = firebase.auth();
+    const adminApp = firebase.apps.find(a => a.name === 'AdminApp') || firebase.initializeApp(config, 'AdminApp');
+    auth = adminApp.auth();
+    try {
+      await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
+    } catch (e) {
+      console.warn('Session persistence error:', e);
+    }
 
     auth.onAuthStateChanged((user) => {
       if (user) {
         if (user.email === ADMIN_EMAIL) {
           document.getElementById('admin-gate').style.display = 'none';
-          document.getElementById('admin-content').style.display = 'grid';
+          document.getElementById('admin-content').style.display = 'flex';
           load();
+          loadAnalytics();
         } else {
-          document.getElementById('auth-error').textContent = 'Access Denied: You are not the Skibidi Shop admin.';
+          document.getElementById('auth-error').textContent = 'Access Denied: You are not the authorized Skibidi Shop admin.';
           document.getElementById('auth-error').style.display = 'block';
           auth.signOut();
         }
@@ -211,37 +372,39 @@
     });
   }
 
-  initAdmin().catch((e) => {
-    console.error('Admin initialization failed:', e);
-    const error = document.getElementById('auth-error');
-    error.textContent = 'The admin dashboard could not be initialized. Please reload the page.';
-    error.style.display = 'block';
-  });
-
   function googleLogin() {
-    auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch((e) => {
-      console.error('Admin sign-in failed:', e);
-      const error = document.getElementById('auth-error');
-      error.textContent = 'Google sign-in failed. Please try again.';
-      error.style.display = 'block';
+    auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(e => {
+      document.getElementById('auth-error').textContent = e.message;
+      document.getElementById('auth-error').style.display = 'block';
     });
   }
 
-  let orders = [];
-  const list = document.getElementById('order-list');
+  async function loadAnalytics() {
+    try {
+      const data = await requestJSON('/api/ai/analytics');
+      document.getElementById('kpi-total').textContent = data.totalOrders;
+      document.getElementById('kpi-pending').textContent = data.status.pending || 0;
+      document.getElementById('kpi-shipped').textContent = data.status.shipped || 0;
+      document.getElementById('kpi-delivered').textContent = data.status.delivered || 0;
+      document.getElementById('kpi-stock').textContent = data.lowStockCount || 0;
+    } catch (e) {
+      console.error('Analytics load error:', e);
+    }
+  }
 
   async function load() {
+    const list = document.getElementById('order-list');
     try {
       orders = await requestJSON('/api/orders');
       render();
     } catch (e) {
-      console.error('Order load failed:', e);
-      list.innerHTML = '<div class="empty">Failed to load orders. Please reload.</div>';
+      list.innerHTML = '<div class="empty">Failed to load orders.</div>';
     }
   }
 
   function render() {
-    if (!orders.length) { list.innerHTML = '<div class="empty">No orders</div>'; return; }
+    const list = document.getElementById('order-list');
+    if (!orders.length) { list.innerHTML = '<div class="empty">No orders recorded yet.</div>'; return; }
     list.innerHTML = '';
     orders.forEach(o => {
       const el = document.createElement('div');
@@ -259,40 +422,10 @@
     });
   }
 
-  async function createOrder() {
-    const name = document.getElementById('inp-name').value;
-    const email = document.getElementById('inp-email').value || null;
-    const product = document.getElementById('inp-product').value;
-    if (!name || !product) {
-      showStatus('Customer name and product name are required.', true);
-      return;
-    }
-
-    try {
-      const order = await requestJSON('/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customer_name: name, customer_email: email, product_name: product })
-      });
-      showStatus(`Order #${order.id} created.`, false);
-    } catch (e) {
-      console.error('Order creation failed:', e);
-      showStatus(e.message, true);
-      return;
-    }
-
-    document.getElementById('inp-name').value = '';
-    document.getElementById('inp-email').value = '';
-    document.getElementById('inp-product').value = '';
-  }
-
   async function updateOrder() {
     const id = document.getElementById('inp-id').value;
     const status = document.getElementById('inp-status').value;
-    if (!id) {
-      showStatus('An order ID is required.', true);
-      return;
-    }
+    if (!id) { showStatus('Order ID is required.', true); return; }
 
     try {
       await requestJSON('/api/orders/' + id, {
@@ -300,53 +433,139 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status })
       });
-      showStatus(`Order #${id} set to ${status}.`, false);
+      showStatus(`Order #${id} set to ${status}. Notification dispatched.`, false);
+      loadAnalytics();
     } catch (e) {
-      console.error('Order status update failed:', e);
       showStatus(e.message, true);
-      return;
     }
-
     document.getElementById('inp-id').value = '';
   }
 
   async function deleteOrder() {
     const id = document.getElementById('inp-id').value;
-    if (!id) {
-      showStatus('An order ID is required.', true);
-      return;
-    }
+    if (!id) { showStatus('Order ID is required.', true); return; }
 
     try {
       await requestJSON('/api/orders/' + id, { method: 'DELETE' });
       showStatus(`Order #${id} deleted.`, false);
+      loadAnalytics();
     } catch (e) {
-      console.error('Order deletion failed:', e);
       showStatus(e.message, true);
-      return;
     }
-
     document.getElementById('inp-id').value = '';
   }
 
-  const dot = document.getElementById('ws-dot');
-  const txt = document.getElementById('ws-text');
+  async function createOrder() {
+    const name = document.getElementById('inp-name').value;
+    const email = document.getElementById('inp-email').value || null;
+    const product = document.getElementById('inp-product').value;
+    if (!name || !product) { showStatus('Name and product are required.', true); return; }
+
+    try {
+      const order = await requestJSON('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customer_name: name, customer_email: email, product_name: product })
+      });
+      showStatus(`Order #${order.id} created successfully.`, false);
+      loadAnalytics();
+    } catch (e) {
+      showStatus(e.message, true);
+    }
+    document.getElementById('inp-name').value = '';
+    document.getElementById('inp-email').value = '';
+    document.getElementById('inp-product').value = '';
+  }
+
+  // AI ADVISOR CHAT
+  function askAdvisor(prompt) {
+    document.getElementById('advisor-input').value = prompt;
+    sendAdvisorQuestion();
+  }
+
+  const advisorInput = document.getElementById('advisor-input');
+  advisorInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); sendAdvisorQuestion(); }
+  });
+
+  async function sendAdvisorQuestion() {
+    const input = document.getElementById('advisor-input');
+    const msg = input.value.trim();
+    if (!msg) return;
+
+    input.value = '';
+    const chatContainer = document.getElementById('advisor-chat');
+
+    const userDiv = document.createElement('div');
+    userDiv.className = 'admin-msg user';
+    userDiv.innerHTML = `<div class="admin-bubble">${escapeHTML(msg)}</div>`;
+    chatContainer.appendChild(userDiv);
+
+    const typingDiv = document.createElement('div');
+    typingDiv.className = 'admin-msg advisor';
+    typingDiv.innerHTML = `<div class="admin-bubble" style="color:#00ff88;">Analyzing database KPIs with Llama 3.3...</div>`;
+    chatContainer.appendChild(typingDiv);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+
+    const btn = document.getElementById('advisor-btn');
+    btn.disabled = true;
+
+    try {
+      const data = await requestJSON('/api/ai/admin-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg, history: advisorHistory })
+      });
+
+      typingDiv.remove();
+
+      const botDiv = document.createElement('div');
+      botDiv.className = 'admin-msg advisor';
+      botDiv.innerHTML = `<div class="admin-bubble">${formatAdvisorMessage(data.reply)}</div>`;
+      chatContainer.appendChild(botDiv);
+
+      advisorHistory.push({ role: 'user', content: msg });
+      advisorHistory.push({ role: 'assistant', content: data.reply });
+      if (advisorHistory.length > 8) advisorHistory = advisorHistory.slice(-8);
+
+    } catch (err) {
+      typingDiv.remove();
+      const errDiv = document.createElement('div');
+      errDiv.className = 'admin-msg advisor';
+      errDiv.innerHTML = `<div class="admin-bubble" style="color:#ef4444;">⚠️ Analysis failed: ${err.message}</div>`;
+      chatContainer.appendChild(errDiv);
+    } finally {
+      btn.disabled = false;
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+  }
+
+  function formatAdvisorMessage(text) {
+    if (!text) return '';
+    return escapeHTML(text)
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/\n/g, '<br>');
+  }
+
+  function escapeHTML(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  // WEBSOCKET
+  const wsDot = document.getElementById('ws-dot');
+  const wsText = document.getElementById('ws-text');
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const ws = new WebSocket(proto + '//' + location.host);
 
-  ws.onopen = () => { dot.classList.add('on'); txt.textContent = 'Live'; };
-  ws.onclose = () => { dot.classList.remove('on'); txt.textContent = 'Offline'; };
-
-  ws.onerror = (e) => { console.error('WebSocket error:', e); };
+  ws.onopen = () => { wsDot.classList.add('on'); wsText.textContent = 'Live'; };
+  ws.onclose = () => { wsDot.classList.remove('on'); wsText.textContent = 'Offline'; };
 
   ws.onmessage = (e) => {
     let msg;
-    try {
-      msg = JSON.parse(e.data);
-    } catch (err) {
-      console.error('Ignoring malformed WebSocket message:', e.data, err);
-      return;
-    }
+    try { msg = JSON.parse(e.data); } catch { return; }
     if (msg.type !== 'order_change') return;
 
     if (msg.operation === 'INSERT') {
@@ -361,9 +580,10 @@
       orders = orders.filter(o => o.id !== msg.data.id);
       render();
     }
+    loadAnalytics();
   };
 
-  load();
+  initAdmin();
 </script>
 </body>
 </html>

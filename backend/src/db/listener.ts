@@ -23,17 +23,26 @@ function clientConfig(): ClientConfig {
 
 function dispatchEmail(event: OrderEvent): void {
   const email = event.data.customer_email;
-  if (!email) return;
+  console.log(`[Email Dispatch] Operation: ${event.operation}, Order #${event.data.id}, Status: ${event.data.status}, Email: ${email || 'NONE'}`);
+
+  if (!email) {
+    console.warn(`[Email Dispatch] Skipping — no customer_email on order #${event.data.id}`);
+    return;
+  }
 
   const send =
     event.operation === 'INSERT' ? sendOrderConfirmationEmail :
     event.operation === 'UPDATE' ? sendOrderStatusUpdateEmail :
     null;
 
-  if (!send) return;
+  if (!send) {
+    console.log(`[Email Dispatch] Skipping — operation ${event.operation} has no email handler`);
+    return;
+  }
 
+  console.log(`[Email Dispatch] Sending ${event.operation} email to ${email} for order #${event.data.id} (status: ${event.data.status})`);
   send(email, event.data).catch((err) => {
-    console.error(`Failed to send ${event.operation} email for order ${event.data.id}:`, err);
+    console.error(`[Email Dispatch] FAILED to send ${event.operation} email for order ${event.data.id}:`, err);
   });
 }
 
